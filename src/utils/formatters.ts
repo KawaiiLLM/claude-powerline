@@ -12,14 +12,14 @@ export function formatCost(cost: number | null): string {
 }
 
 export function formatTokens(tokens: number | null): string {
-  if (tokens === null) return "0 tokens";
-  if (tokens === 0) return "0 tokens";
+  if (tokens === null) return "0";
+  if (tokens === 0) return "0";
   if (tokens >= 1_000_000) {
-    return `${(tokens / 1_000_000).toFixed(1)}M tokens`;
+    return `${(tokens / 1_000_000).toFixed(1)}M`;
   } else if (tokens >= 1_000) {
-    return `${(tokens / 1_000).toFixed(1)}K tokens`;
+    return `${(tokens / 1_000).toFixed(1)}K`;
   }
-  return `${tokens} tokens`;
+  return `${tokens}`;
 }
 
 export function formatTokenBreakdown(breakdown: TokenBreakdown | null): string {
@@ -71,9 +71,11 @@ export function formatModelName(rawName: string): string {
     return "Claude";
   }
 
-  const match = rawName.trim().match(CLAUDE_MODEL_PATTERN);
+  const cleaned = rawName.trim().replace(/\(\s*(\d+[KMG]?)\s*context\s*\)/i, "($1)");
+
+  const match = cleaned.match(CLAUDE_MODEL_PATTERN);
   if (!match?.groups) {
-    return rawName;
+    return cleaned;
   }
 
   const { family, newMajor, newMinor, oldMajor, oldMinor, oldFamily } =
