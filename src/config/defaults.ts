@@ -45,6 +45,7 @@ export const DEFAULT_CONFIG: PowerlineConfig = {
             displayStyle: "text",
             autocompactBuffer: 33000,
           },
+          cacheHit: { enabled: false },
           metrics: {
             enabled: false,
             showResponseTime: true,

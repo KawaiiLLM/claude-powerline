@@ -34,6 +34,8 @@ export const SYMBOLS = {
   env: "⚙",
   session_id: "⌗",
   weekly_cost: "◑",
+  five_hour: "◒",
+  cache_hit: "⌁",
 } as const;
 
 export const BOX_CHARS = {
@@ -92,4 +94,6 @@ export const TEXT_SYMBOLS = {
   env: "$",
   session_id: "#",
   weekly_cost: "W",
+  five_hour: "5h",
+  cache_hit: "C",
 } as const;

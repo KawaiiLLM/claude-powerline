@@ -15,6 +15,7 @@ export const nordTheme: ColorTheme = {
   version: { bg: "#434c5e", fg: "#88c0d0" },
   env: { bg: "#3b4252", fg: "#b48ead" },
   weekly: { bg: "#3b4252", fg: "#88c0d0" },
+  cacheHit: { bg: "#2e3440", fg: "#a3be8c" },
 };
 
 export const nordAnsi256Theme: ColorTheme = {
@@ -32,6 +33,7 @@ export const nordAnsi256Theme: ColorTheme = {
   version: { bg: "#5f87af", fg: "#5fafaf" },
   env: { bg: "#4e4e4e", fg: "#d787af" },
   weekly: { bg: "#4e4e4e", fg: "#5fafaf" },
+  cacheHit: { bg: "#3a3a3a", fg: "#87d787" },
 };
 
 export const nordAnsiTheme: ColorTheme = {
@@ -49,4 +51,5 @@ export const nordAnsiTheme: ColorTheme = {
   version: { bg: "#0087af", fg: "#00d7d7" },
   env: { bg: "#585858", fg: "#ff87af" },
   weekly: { bg: "#585858", fg: "#00d7d7" },
+  cacheHit: { bg: "#444444", fg: "#87d700" },
 };

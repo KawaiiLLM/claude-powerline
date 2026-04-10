@@ -21,6 +21,7 @@ export interface TodayInfo {
   tokens: number | null;
   tokenBreakdown: TokenBreakdown | null;
   date: string;
+  mnemoSubcost?: number | null;
 }
 
 function formatDate(date: Date): string {

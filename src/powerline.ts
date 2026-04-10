@@ -33,9 +33,13 @@ import {
   SessionIdSegmentConfig,
   EnvSegmentConfig,
   WeeklySegmentConfig,
+  FiveHourSegmentConfig,
+  CacheHitSegmentConfig,
 } from "./segments";
 import { BlockProvider, BlockInfo } from "./segments/block";
+import { CacheHitProvider, CacheHitInfo } from "./segments/cache-hit";
 import { TodayProvider, TodayInfo } from "./segments/today";
+import { MnemoProvider } from "./segments/mnemo";
 import {
   SYMBOLS,
   TEXT_SYMBOLS,
@@ -63,6 +67,8 @@ export class PowerlineRenderer {
   private _gitService?: GitService;
   private _tmuxService?: TmuxService;
   private _metricsProvider?: MetricsProvider;
+  private _cacheHitProvider?: CacheHitProvider;
+  private _mnemoProvider?: MnemoProvider;
   private _segmentRenderer?: SegmentRenderer;
 
   constructor(private readonly config: PowerlineConfig) {
@@ -88,6 +94,13 @@ export class PowerlineRenderer {
       this._todayProvider = new TodayProvider();
     }
     return this._todayProvider;
+  }
+
+  private get mnemoProvider(): MnemoProvider {
+    if (!this._mnemoProvider) {
+      this._mnemoProvider = new MnemoProvider();
+    }
+    return this._mnemoProvider;
   }
 
   private get contextProvider(): ContextProvider {
@@ -116,6 +129,13 @@ export class PowerlineRenderer {
       this._metricsProvider = new MetricsProvider();
     }
     return this._metricsProvider;
+  }
+
+  private get cacheHitProvider(): CacheHitProvider {
+    if (!this._cacheHitProvider) {
+      this._cacheHitProvider = new CacheHitProvider();
+    }
+    return this._cacheHitProvider;
   }
 
   private get segmentRenderer(): SegmentRenderer {
@@ -148,6 +168,16 @@ export class PowerlineRenderer {
       ? await this.todayProvider.getTodayInfo()
       : null;
 
+    if (todayInfo) {
+      const todayConfig = this.config.display.lines
+        .flatMap((l) => (l.segments.today ? [l.segments.today] : []))
+        .find((c) => c.enabled) as TodaySegmentConfig | undefined;
+      if (todayConfig?.mnemoPath) {
+        const mnemoInfo = await this.mnemoProvider.getMnemoInfo(todayConfig.mnemoPath);
+        if (mnemoInfo) todayInfo.mnemoSubcost = mnemoInfo.cost;
+      }
+    }
+
     const contextSegmentConfig = this.config.display.lines
       .map((line) => line.segments.context)
       .find((c) => c?.enabled) as ContextSegmentConfig | undefined;
@@ -160,6 +190,10 @@ export class PowerlineRenderer {
       ? await this.metricsProvider.getMetricsInfo(hookData.session_id, hookData)
       : null;
 
+    const cacheHitInfo = this.needsSegmentInfo("cacheHit")
+      ? await this.cacheHitProvider.getCacheHitInfo(hookData)
+      : null;
+
     if (this.config.display.autoWrap) {
       return this.generateAutoWrapStatusline(
         hookData,
@@ -168,6 +202,7 @@ export class PowerlineRenderer {
         todayInfo,
         contextInfo,
         metricsInfo,
+        cacheHitInfo,
       );
     }
 
@@ -181,6 +216,7 @@ export class PowerlineRenderer {
           todayInfo,
           contextInfo,
           metricsInfo,
+          cacheHitInfo,
         ),
       ),
     );
@@ -195,6 +231,7 @@ export class PowerlineRenderer {
     todayInfo: TodayInfo | null,
     contextInfo: ContextInfo | null,
     metricsInfo: MetricsInfo | null,
+    cacheHitInfo: CacheHitInfo | null = null,
   ): Promise<string> {
     const colors = this.getThemeColors();
     const currentDir = hookData.workspace?.current_dir || hookData.cwd || "/";
@@ -223,6 +260,7 @@ export class PowerlineRenderer {
           todayInfo,
           contextInfo,
           metricsInfo,
+          cacheHitInfo,
           colors,
           currentDir,
         );
@@ -411,6 +449,7 @@ export class PowerlineRenderer {
     todayInfo: TodayInfo | null,
     contextInfo: ContextInfo | null,
     metricsInfo: MetricsInfo | null,
+    cacheHitInfo: CacheHitInfo | null = null,
   ): Promise<string> {
     const colors = this.getThemeColors();
     const currentDir = hookData.workspace?.current_dir || hookData.cwd || "/";
@@ -432,6 +471,7 @@ export class PowerlineRenderer {
         todayInfo,
         contextInfo,
         metricsInfo,
+        cacheHitInfo,
         colors,
         currentDir,
       );
@@ -457,6 +497,7 @@ export class PowerlineRenderer {
     todayInfo: TodayInfo | null,
     contextInfo: ContextInfo | null,
     metricsInfo: MetricsInfo | null,
+    cacheHitInfo: CacheHitInfo | null,
     colors: PowerlineColors,
     currentDir: string,
   ) {
@@ -555,6 +596,22 @@ export class PowerlineRenderer {
         hookData,
         colors,
         segment.config as WeeklySegmentConfig,
+      );
+    }
+
+    if (segment.type === "fiveHour") {
+      return this.segmentRenderer.renderFiveHour(
+        hookData,
+        colors,
+        segment.config as FiveHourSegmentConfig,
+      );
+    }
+
+    if (segment.type === "cacheHit") {
+      return this.segmentRenderer.renderCacheHit(
+        cacheHitInfo,
+        colors,
+        segment.config as CacheHitSegmentConfig,
       );
     }
 
@@ -698,6 +755,8 @@ export class PowerlineRenderer {
       env: symbolSet.env,
       session_id: symbolSet.session_id,
       weekly_cost: symbolSet.weekly_cost,
+      five_hour: symbolSet.five_hour,
+      cache_hit: symbolSet.cache_hit,
     };
   }
 
@@ -776,6 +835,8 @@ export class PowerlineRenderer {
     const version = getSegmentColors("version");
     const env = getSegmentColors("env");
     const weekly = getSegmentColors("weekly");
+    const fiveHour = getSegmentColors("fiveHour");
+    const cacheHit = getSegmentColors("cacheHit");
 
     return {
       reset: colorSupport === "none" ? "" : RESET_CODE,
@@ -807,6 +868,10 @@ export class PowerlineRenderer {
       envFg: env.fg,
       weeklyBg: weekly.bg,
       weeklyFg: weekly.fg,
+      fiveHourBg: fiveHour.bg,
+      fiveHourFg: fiveHour.fg,
+      cacheHitBg: cacheHit.bg,
+      cacheHitFg: cacheHit.fg,
     };
   }
 
@@ -840,6 +905,10 @@ export class PowerlineRenderer {
         return colors.envBg;
       case "weekly":
         return colors.weeklyBg;
+      case "fiveHour":
+        return colors.fiveHourBg;
+      case "cacheHit":
+        return colors.cacheHitBg;
       default:
         return colors.modeBg;
     }

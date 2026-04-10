@@ -33,6 +33,7 @@ export interface ColorTheme {
   version: SegmentColor;
   env: SegmentColor;
   weekly: SegmentColor;
+  cacheHit: SegmentColor;
 }
 
 export interface PowerlineColors {
@@ -65,6 +66,10 @@ export interface PowerlineColors {
   envFg: string;
   weeklyBg: string;
   weeklyFg: string;
+  cacheHitBg: string;
+  cacheHitFg: string;
+  fiveHourBg: string;
+  fiveHourFg: string;
 }
 
 export const BUILT_IN_THEMES: Record<string, ColorTheme> = {

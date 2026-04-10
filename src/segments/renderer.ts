@@ -70,6 +70,7 @@ export interface BlockSegmentConfig extends SegmentConfig {
 
 export interface TodaySegmentConfig extends SegmentConfig {
   type: "cost" | "tokens" | "both" | "breakdown";
+  mnemoPath?: string;
 }
 
 export interface VersionSegmentConfig extends SegmentConfig {}
@@ -87,6 +88,12 @@ export interface WeeklySegmentConfig extends SegmentConfig {
   displayStyle?: BarDisplayStyle;
 }
 
+export interface FiveHourSegmentConfig extends SegmentConfig {
+  displayStyle?: BarDisplayStyle;
+}
+
+export interface CacheHitSegmentConfig extends SegmentConfig {}
+
 export type AnySegmentConfig =
   | SegmentConfig
   | DirectorySegmentConfig
@@ -100,7 +107,9 @@ export type AnySegmentConfig =
   | VersionSegmentConfig
   | SessionIdSegmentConfig
   | EnvSegmentConfig
-  | WeeklySegmentConfig;
+  | WeeklySegmentConfig
+  | FiveHourSegmentConfig
+  | CacheHitSegmentConfig;
 
 import {
   formatCost,
@@ -119,6 +128,7 @@ import type {
   ContextInfo,
   MetricsInfo,
 } from ".";
+import type { CacheHitInfo } from "./cache-hit";
 import type { TodayInfo } from "./today";
 
 export interface PowerlineSymbols {
@@ -154,6 +164,8 @@ export interface PowerlineSymbols {
   env: string;
   session_id: string;
   weekly_cost: string;
+  five_hour: string;
+  cache_hit: string;
 }
 
 export interface SegmentData {
@@ -828,21 +840,61 @@ export class SegmentRenderer {
     };
   }
 
+  renderFiveHour(
+    hookData: ClaudeHookData,
+    colors: PowerlineColors,
+    config?: FiveHourSegmentConfig,
+  ): SegmentData | null {
+    const fiveHour = hookData.rate_limits?.five_hour;
+    if (!fiveHour) return null;
+
+    const pct = Math.round(fiveHour.used_percentage);
+    const timeStr = formatLongTimeRemaining(
+      minutesUntilReset(fiveHour.resets_at),
+    );
+
+    let bgColor = colors.fiveHourBg;
+    let fgColor = colors.fiveHourFg;
+    if (pct >= 80) {
+      bgColor = colors.contextCriticalBg;
+      fgColor = colors.contextCriticalFg;
+    } else if (pct >= 50) {
+      bgColor = colors.contextWarningBg;
+      fgColor = colors.contextWarningFg;
+    }
+
+    return {
+      text: `${this.symbols.five_hour} ${this.formatPercentageWithBar(pct, config?.displayStyle, timeStr)}`,
+      bgColor,
+      fgColor,
+    };
+  }
+
   renderToday(
     todayInfo: TodayInfo,
     colors: PowerlineColors,
     type = "cost",
   ): SegmentData {
-    const todayBudget = this.config.budget?.today;
-    const text = `${this.symbols.today_cost} ${this.formatUsageWithBudget(
-      todayInfo.cost,
-      todayInfo.tokens,
-      todayInfo.tokenBreakdown,
-      type,
-      todayBudget?.amount,
-      todayBudget?.warningThreshold,
-      todayBudget?.type,
-    )}`;
+    let text: string;
+
+    if (todayInfo.mnemoSubcost != null) {
+      const total = (todayInfo.cost ?? 0) + todayInfo.mnemoSubcost;
+      const mnemoStr = todayInfo.mnemoSubcost < 0.01
+        ? `${(todayInfo.mnemoSubcost * 100).toFixed(1)}¢`
+        : todayInfo.mnemoSubcost.toFixed(2);
+      text = `${this.symbols.today_cost} ${formatCost(total)} (${mnemoStr})`;
+    } else {
+      const todayBudget = this.config.budget?.today;
+      text = `${this.symbols.today_cost} ${this.formatUsageWithBudget(
+        todayInfo.cost,
+        todayInfo.tokens,
+        todayInfo.tokenBreakdown,
+        type,
+        todayBudget?.amount,
+        todayBudget?.warningThreshold,
+        todayBudget?.type,
+      )}`;
+    }
 
     return {
       text,
@@ -942,6 +994,31 @@ export class SegmentRenderer {
       text: `${this.symbols.version} v${hookData.version}`,
       bgColor: colors.versionBg,
       fgColor: colors.versionFg,
+    };
+  }
+
+  renderCacheHit(
+    cacheHitInfo: CacheHitInfo | null,
+    colors: PowerlineColors,
+    _config?: CacheHitSegmentConfig,
+  ): SegmentData | null {
+    if (!cacheHitInfo) return null;
+
+    let ttlText = "";
+    if (cacheHitInfo.cacheLastAccessedAt !== null && cacheHitInfo.cacheTtlMs !== null) {
+      const expiresAt = cacheHitInfo.cacheLastAccessedAt + cacheHitInfo.cacheTtlMs;
+      if (expiresAt > Date.now()) {
+        const d = new Date(expiresAt);
+        const hh = d.getHours().toString().padStart(2, "0");
+        const mm = d.getMinutes().toString().padStart(2, "0");
+        ttlText = ` (${hh}:${mm})`;
+      }
+    }
+
+    return {
+      text: `${this.symbols.cache_hit} ${cacheHitInfo.hitRate}%${ttlText}`,
+      bgColor: colors.cacheHitBg,
+      fgColor: colors.cacheHitFg,
     };
   }
 
