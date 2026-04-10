@@ -298,11 +298,20 @@ async function parseJsonlFileInMemory(
     .split("\n")
     .filter((line) => line.trim());
   const entries: ParsedEntry[] = [];
+  const seenUuids = new Set<string>();
 
   for (const line of lines) {
     try {
       const raw = JSON.parse(line);
       if (!raw.timestamp) continue;
+
+      // Claude Code re-appends the session history on `claude --continue` /
+      // `--resume`, producing duplicate entries with identical uuid. Keep
+      // only the first occurrence of each uuid.
+      if (typeof raw.uuid === "string") {
+        if (seenUuids.has(raw.uuid)) continue;
+        seenUuids.add(raw.uuid);
+      }
 
       const entry: ParsedEntry = {
         timestamp: new Date(raw.timestamp),
@@ -327,6 +336,7 @@ async function parseJsonlFileStreaming(
 ): Promise<ParsedEntry[]> {
   return new Promise((resolve, reject) => {
     const entries: ParsedEntry[] = [];
+    const seenUuids = new Set<string>();
     const fileStream = createReadStream(filePath, { encoding: "utf8" });
     const rl = createInterface({
       input: fileStream,
@@ -340,6 +350,12 @@ async function parseJsonlFileStreaming(
       try {
         const raw = JSON.parse(trimmedLine);
         if (!raw.timestamp) return;
+
+        // Dedupe by uuid — see parseJsonlFileInMemory for rationale.
+        if (typeof raw.uuid === "string") {
+          if (seenUuids.has(raw.uuid)) return;
+          seenUuids.add(raw.uuid);
+        }
 
         const entry: ParsedEntry = {
           timestamp: new Date(raw.timestamp),

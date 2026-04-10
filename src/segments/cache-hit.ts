@@ -17,6 +17,7 @@ export interface CacheHitInfo {
 }
 
 interface ParsedLine {
+  uuid?: string;
   type?: string;
   promptId?: string;
   cacheRead: number;
@@ -71,16 +72,24 @@ async function readTailParsed(filePath: string): Promise<ParsedLine[]> {
       if (userCount >= 2 || start === 0) break;
     }
 
-    // Parse all lines once
+    // Parse all lines once, deduping by uuid. Claude Code re-appends the
+    // session history on `--continue` / `--resume`, producing duplicate
+    // entries with identical uuid.
     const result: ParsedLine[] = [];
+    const seenUuids = new Set<string>();
     for (const line of accumulated.split("\n")) {
       const trimmed = line.trim();
       if (!trimmed) continue;
       try {
         const raw = JSON.parse(trimmed);
+        if (typeof raw.uuid === "string") {
+          if (seenUuids.has(raw.uuid)) continue;
+          seenUuids.add(raw.uuid);
+        }
         const usage = raw.message?.usage;
         const ts = raw.timestamp ? new Date(raw.timestamp as string).getTime() : undefined;
         result.push({
+          uuid: typeof raw.uuid === "string" ? raw.uuid : undefined,
           type: raw.type,
           promptId: typeof raw.promptId === "string" ? raw.promptId : undefined,
           cacheRead: usage?.cache_read_input_tokens || 0,
@@ -107,16 +116,19 @@ function isUserEntry(entry: ParsedLine): boolean {
 }
 
 /**
- * Pick the cache hit rate of the request with the largest cache_creation
- * (the most expensive write) within entries in [from, to).
+ * Calculate the weighted cache hit rate for entries in [from, to):
+ * ΣcacheRead / Σtotal. This reflects how much of the turn's total
+ * token cost landed on cheap cache reads.
  */
-function calcMinHitRate(
+function calcTurnHitRate(
   entries: ParsedLine[],
   from: number,
   to: number,
 ): CacheHitInfo | null {
-  // Collect all usage entries with their totals
-  const usageEntries: { cr: number; cc: number; inp: number; total: number }[] = [];
+  let sumCacheRead = 0;
+  let sumCacheCreation = 0;
+  let sumInput = 0;
+  let hasAny = false;
 
   for (let i = from; i < to; i++) {
     const e = entries[i]!;
@@ -125,27 +137,20 @@ function calcMinHitRate(
     const total = e.inputTokens + e.cacheRead + e.cacheCreation;
     if (total === 0) continue;
 
-    usageEntries.push({
-      cr: e.cacheRead,
-      cc: e.cacheCreation,
-      inp: e.inputTokens,
-      total,
-    });
+    sumCacheRead += e.cacheRead;
+    sumCacheCreation += e.cacheCreation;
+    sumInput += e.inputTokens;
+    hasAny = true;
   }
 
-  if (usageEntries.length === 0) return null;
+  if (!hasAny) return null;
 
-  // Find entry with most cache writes (most expensive request)
-  let maxEntry = usageEntries[0]!;
-  for (const e of usageEntries) {
-    if (e.cc > maxEntry.cc) maxEntry = e;
-  }
-
+  const sumTotal = sumCacheRead + sumCacheCreation + sumInput;
   return {
-    cacheRead: maxEntry.cr,
-    cacheCreation: maxEntry.cc,
-    inputTokens: maxEntry.inp,
-    hitRate: Math.round((maxEntry.cr / maxEntry.total) * 100),
+    cacheRead: sumCacheRead,
+    cacheCreation: sumCacheCreation,
+    inputTokens: sumInput,
+    hitRate: Math.round((sumCacheRead / sumTotal) * 100),
     cacheLastAccessedAt: null,
     cacheTtlMs: null,
   };
@@ -201,12 +206,12 @@ export class CacheHitProvider {
         const turnEnd =
           u < userIndices.length - 1 ? userIndices[u + 1]! : entries.length;
 
-        const result = calcMinHitRate(entries, turnStart, turnEnd);
+        const result = calcTurnHitRate(entries, turnStart, turnEnd);
         if (result) return attachTtl(result);
       }
 
       // No user entries found, try all entries
-      return attachTtl(calcMinHitRate(entries, 0, entries.length));
+      return attachTtl(calcTurnHitRate(entries, 0, entries.length));
     } catch (error) {
       debug("Error getting cache hit info:", error);
       return null;
