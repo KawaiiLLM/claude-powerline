@@ -124,6 +124,14 @@ const OFFLINE_PRICING_DATA: Record<string, ModelPricing> = {
     cache_write_1h: 10.0,
     cache_read: 0.5,
   },
+  "claude-opus-4-7": {
+    name: "Claude Opus 4.7",
+    input: 5.0,
+    output: 25.0,
+    cache_write_5m: 6.25,
+    cache_write_1h: 10.0,
+    cache_read: 0.5,
+  },
   "claude-sonnet-4-6": {
     name: "Claude Sonnet 4.6",
     input: 3.0,
@@ -342,6 +350,10 @@ export class PricingService {
     }
     const patterns = [
       {
+        pattern: ["opus-4-7", "opus-4.7", "claude-opus-4-7"],
+        fallback: "claude-opus-4-7",
+      },
+      {
         pattern: ["opus-4-6", "claude-opus-4-6"],
         fallback: "claude-opus-4-6-20260205",
       },
@@ -380,8 +392,10 @@ export class PricingService {
 
     for (const { pattern, fallback } of patterns) {
       if (pattern.some((p) => lowerModelId.includes(p))) {
-        if (allPricing[fallback]) {
-          return allPricing[fallback];
+        const fallbackPricing =
+          allPricing[fallback] || OFFLINE_PRICING_DATA[fallback];
+        if (fallbackPricing) {
+          return fallbackPricing;
         }
       }
     }
@@ -410,14 +424,32 @@ export class PricingService {
     const outputTokens = usage.output_tokens || 0;
     const cacheCreationTokens = usage.cache_creation_input_tokens || 0;
     const cacheReadTokens = usage.cache_read_input_tokens || 0;
+    const cacheCreation = usage.cache_creation || {};
+    const explicit5mTokens = cacheCreation.ephemeral_5m_input_tokens || 0;
+    const explicit1hTokens = cacheCreation.ephemeral_1h_input_tokens || 0;
+    const explicitSplitTokens = explicit5mTokens + explicit1hTokens;
+    const remainingUnspecifiedTokens = Math.max(
+      cacheCreationTokens - explicitSplitTokens,
+      0,
+    );
+    const cacheCreation5mTokens = explicit5mTokens + remainingUnspecifiedTokens;
+    const cacheCreation1hTokens = explicit1hTokens;
 
     const inputCost = (inputTokens / 1_000_000) * pricing.input;
     const outputCost = (outputTokens / 1_000_000) * pricing.output;
     const cacheReadCost = (cacheReadTokens / 1_000_000) * pricing.cache_read;
-    const cacheCreationCost =
-      (cacheCreationTokens / 1_000_000) * pricing.cache_write_5m;
+    const cacheCreation5mCost =
+      (cacheCreation5mTokens / 1_000_000) * pricing.cache_write_5m;
+    const cacheCreation1hCost =
+      (cacheCreation1hTokens / 1_000_000) * pricing.cache_write_1h;
 
-    return inputCost + outputCost + cacheCreationCost + cacheReadCost;
+    return (
+      inputCost +
+      outputCost +
+      cacheCreation5mCost +
+      cacheCreation1hCost +
+      cacheReadCost
+    );
   }
 
   private static extractModelId(entry: any): string {
