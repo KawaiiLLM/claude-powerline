@@ -22,5 +22,6 @@ export type {
   SessionIdSegmentConfig,
   EnvSegmentConfig,
   WeeklySegmentConfig,
+  FiveHourSegmentConfig,
   CacheHitSegmentConfig,
 } from "./renderer";

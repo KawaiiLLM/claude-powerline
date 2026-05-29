@@ -17,6 +17,7 @@ import type {
   SessionIdSegmentConfig,
   EnvSegmentConfig,
   WeeklySegmentConfig,
+  FiveHourSegmentConfig,
   CacheHitSegmentConfig,
 } from "../segments/renderer";
 
@@ -35,6 +36,7 @@ export interface LineConfig {
     sessionId?: SessionIdSegmentConfig;
     env?: EnvSegmentConfig;
     weekly?: WeeklySegmentConfig;
+    fiveHour?: FiveHourSegmentConfig;
     cacheHit?: CacheHitSegmentConfig;
   };
 }

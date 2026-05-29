@@ -16,6 +16,7 @@ export const lightTheme: ColorTheme = {
   env: { bg: "#d45dbf", fg: "#ffffff" },
   weekly: { bg: "#4f46e5", fg: "#ffffff" },
   cacheHit: { bg: "#059669", fg: "#ffffff" },
+  fiveHour: { bg: "#ea580c", fg: "#ffffff" },
 };
 
 export const lightAnsi256Theme: ColorTheme = {
@@ -34,6 +35,7 @@ export const lightAnsi256Theme: ColorTheme = {
   env: { bg: "#d787af", fg: "#ffffff" },
   weekly: { bg: "#5f5fff", fg: "#ffffff" },
   cacheHit: { bg: "#00875f", fg: "#ffffff" },
+  fiveHour: { bg: "#d75f00", fg: "#ffffff" },
 };
 
 export const lightAnsiTheme: ColorTheme = {
@@ -52,4 +54,5 @@ export const lightAnsiTheme: ColorTheme = {
   env: { bg: "#d787af", fg: "#ffffff" },
   weekly: { bg: "#5f5fff", fg: "#ffffff" },
   cacheHit: { bg: "#00875f", fg: "#ffffff" },
+  fiveHour: { bg: "#d75f00", fg: "#ffffff" },
 };

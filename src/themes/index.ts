@@ -34,6 +34,7 @@ export interface ColorTheme {
   env: SegmentColor;
   weekly: SegmentColor;
   cacheHit: SegmentColor;
+  fiveHour: SegmentColor;
 }
 
 export interface PowerlineColors {

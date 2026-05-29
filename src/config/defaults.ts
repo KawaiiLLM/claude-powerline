@@ -36,6 +36,7 @@ export const DEFAULT_CONFIG: PowerlineConfig = {
             displayStyle: "text",
           },
           weekly: { enabled: false, displayStyle: "text" },
+          fiveHour: { enabled: false, displayStyle: "text" },
           version: { enabled: false },
           tmux: { enabled: false },
           sessionId: { enabled: false, showIdLabel: true },
