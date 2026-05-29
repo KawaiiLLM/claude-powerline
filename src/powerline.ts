@@ -172,10 +172,10 @@ export class PowerlineRenderer {
       const todayConfig = this.config.display.lines
         .flatMap((l) => (l.segments.today ? [l.segments.today] : []))
         .find((c) => c.enabled) as TodaySegmentConfig | undefined;
-      if (todayConfig?.mnemoPath) {
-        const mnemoInfo = await this.mnemoProvider.getMnemoInfo(todayConfig.mnemoPath);
-        if (mnemoInfo) todayInfo.mnemoSubcost = mnemoInfo.cost;
-      }
+      const mnemoInfo = await this.mnemoProvider.getMnemoInfo(
+        todayConfig?.mnemoPath,
+      );
+      if (mnemoInfo) todayInfo.mnemoSubcost = mnemoInfo.cost;
     }
 
     const contextSegmentConfig = this.config.display.lines

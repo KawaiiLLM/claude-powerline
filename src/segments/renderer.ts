@@ -878,11 +878,12 @@ export class SegmentRenderer {
     let text: string;
 
     if (todayInfo.mnemoSubcost != null) {
-      const total = (todayInfo.cost ?? 0) + todayInfo.mnemoSubcost;
-      const mnemoStr = todayInfo.mnemoSubcost < 0.01
-        ? `${(todayInfo.mnemoSubcost * 100).toFixed(1)}¢`
-        : todayInfo.mnemoSubcost.toFixed(2);
-      text = `${this.symbols.today_cost} ${formatCost(total)} (${mnemoStr})`;
+      // mnemoSubcost is already included in todayInfo.cost; just annotate the portion
+      const mnemoStr =
+        todayInfo.mnemoSubcost < 0.01
+          ? `${(todayInfo.mnemoSubcost * 100).toFixed(1)}¢`
+          : todayInfo.mnemoSubcost.toFixed(2);
+      text = `${this.symbols.today_cost} ${formatCost(todayInfo.cost)} (${mnemoStr})`;
     } else {
       const todayBudget = this.config.budget?.today;
       text = `${this.symbols.today_cost} ${this.formatUsageWithBudget(
@@ -1005,13 +1006,18 @@ export class SegmentRenderer {
     if (!cacheHitInfo) return null;
 
     let ttlText = "";
-    if (cacheHitInfo.cacheLastAccessedAt !== null && cacheHitInfo.cacheTtlMs !== null) {
-      const expiresAt = cacheHitInfo.cacheLastAccessedAt + cacheHitInfo.cacheTtlMs;
+    if (
+      cacheHitInfo.cacheLastAccessedAt !== null &&
+      cacheHitInfo.cacheTtlMs !== null
+    ) {
+      const expiresAt =
+        cacheHitInfo.cacheLastAccessedAt + cacheHitInfo.cacheTtlMs;
       if (expiresAt > Date.now()) {
         const d = new Date(expiresAt);
         const hh = d.getHours().toString().padStart(2, "0");
         const mm = d.getMinutes().toString().padStart(2, "0");
-        ttlText = ` (${hh}:${mm})`;
+        const ss = d.getSeconds().toString().padStart(2, "0");
+        ttlText = ` (${hh}:${mm}:${ss})`;
       }
     }
 

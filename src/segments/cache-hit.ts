@@ -2,10 +2,7 @@ import { open } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { stat } from "node:fs/promises";
 import { debug } from "../utils/logger";
-import {
-  findTranscriptFile,
-  type ClaudeHookData,
-} from "../utils/claude";
+import { findTranscriptFile, type ClaudeHookData } from "../utils/claude";
 
 export interface CacheHitInfo {
   cacheRead: number;
@@ -61,8 +58,12 @@ async function readTailParsed(filePath: string): Promise<ParsedLine[]> {
         const l = lines[i]!.trim();
         if (!l) continue;
         // Quick check without full JSON parse
-        if (l.includes('"type":"user"') || l.includes('"type":"human"') ||
-            l.includes('"type": "user"') || l.includes('"type": "human"')) {
+        if (
+          l.includes('"type":"user"') ||
+          l.includes('"type":"human"') ||
+          l.includes('"type": "user"') ||
+          l.includes('"type": "human"')
+        ) {
           count++;
           if (count >= 2) break;
         }
@@ -87,15 +88,19 @@ async function readTailParsed(filePath: string): Promise<ParsedLine[]> {
           seenUuids.add(raw.uuid);
         }
         const usage = raw.message?.usage;
-        const ts = raw.timestamp ? new Date(raw.timestamp as string).getTime() : undefined;
+        const ts = raw.timestamp
+          ? new Date(raw.timestamp as string).getTime()
+          : undefined;
         result.push({
           uuid: typeof raw.uuid === "string" ? raw.uuid : undefined,
           type: raw.type,
           promptId: typeof raw.promptId === "string" ? raw.promptId : undefined,
           cacheRead: usage?.cache_read_input_tokens || 0,
           cacheCreation: usage?.cache_creation_input_tokens || 0,
-          cacheCreation5m: usage?.cache_creation?.ephemeral_5m_input_tokens || 0,
-          cacheCreation1h: usage?.cache_creation?.ephemeral_1h_input_tokens || 0,
+          cacheCreation5m:
+            usage?.cache_creation?.ephemeral_5m_input_tokens || 0,
+          cacheCreation1h:
+            usage?.cache_creation?.ephemeral_1h_input_tokens || 0,
           inputTokens: usage?.input_tokens || 0,
           hasUsage: !!usage,
           timestamp: Number.isNaN(ts) ? undefined : ts,
@@ -182,14 +187,37 @@ export class CacheHitProvider {
         }
       }
 
-      // Find TTL info: last cache access time and creation TTL type
+      // Find TTL info: last cache access time and creation TTL type.
+      // Cache TTL countdown starts at prefill (when the server reads/writes the
+      // cache block), which happens at request receipt — not when streaming ends.
+      // Using the assistant response timestamp would overestimate the remaining
+      // TTL by the full decode duration (potentially minutes for long responses).
+      // Instead, use the user entry immediately preceding the last cache-touching
+      // assistant entry: that user entry's timestamp ≈ when the request was sent
+      // ≈ when prefill and the TTL reset actually occurred.
       let cacheLastAccessedAt: number | null = null;
       let cacheTtlMs: number | null = null;
       for (let i = entries.length - 1; i >= 0; i--) {
         const e = entries[i]!;
         if (!e.hasUsage) continue;
-        if (cacheLastAccessedAt === null && e.timestamp !== undefined && (e.cacheRead > 0 || e.cacheCreation > 0)) {
-          cacheLastAccessedAt = e.timestamp;
+        if (
+          cacheLastAccessedAt === null &&
+          e.timestamp !== undefined &&
+          (e.cacheRead > 0 || e.cacheCreation > 0)
+        ) {
+          // Scan back to find the user entry that triggered this request.
+          // Stop at the first user entry regardless of whether it has a
+          // timestamp, so we never cross a turn boundary and latch onto a
+          // user entry from a previous turn.
+          let requestTs: number | undefined;
+          for (let j = i - 1; j >= 0; j--) {
+            const prev = entries[j]!;
+            if (isUserEntry(prev)) {
+              requestTs = prev.timestamp;
+              break;
+            }
+          }
+          cacheLastAccessedAt = requestTs ?? e.timestamp;
         }
         if (cacheTtlMs === null && e.cacheCreation > 0) {
           cacheTtlMs = e.cacheCreation1h > 0 ? 3600000 : 300000;
