@@ -132,6 +132,14 @@ const OFFLINE_PRICING_DATA: Record<string, ModelPricing> = {
     cache_write_1h: 10.0,
     cache_read: 0.5,
   },
+  "claude-opus-4-8": {
+    name: "Claude Opus 4.8",
+    input: 5.0,
+    output: 25.0,
+    cache_write_5m: 6.25,
+    cache_write_1h: 10.0,
+    cache_read: 0.5,
+  },
   "claude-sonnet-4-6": {
     name: "Claude Sonnet 4.6",
     input: 3.0,
@@ -350,6 +358,10 @@ export class PricingService {
     }
     const patterns = [
       {
+        pattern: ["opus-4-8", "opus-4.8", "claude-opus-4-8"],
+        fallback: "claude-opus-4-8",
+      },
+      {
         pattern: ["opus-4-7", "opus-4.7", "claude-opus-4-7"],
         fallback: "claude-opus-4-7",
       },
@@ -366,8 +378,12 @@ export class PricingService {
         fallback: "claude-opus-4-1-20250805",
       },
       {
+        // Opus 4 / 4.1 are matched by their explicit patterns above; this is the
+        // catch-all for any newer, unrecognized opus-4-x. Since the Opus tier
+        // dropped to $5/$25 at 4.5, default unknown versions to the current tier
+        // rather than the original (3x more expensive) Opus 4 pricing.
         pattern: ["opus-4", "claude-opus-4"],
-        fallback: "claude-opus-4-20250514",
+        fallback: "claude-opus-4-8",
       },
       {
         pattern: ["sonnet-4-6", "sonnet-4.6", "claude-sonnet-4-6"],
@@ -386,7 +402,7 @@ export class PricingService {
         fallback: "claude-haiku-4-5-20251001",
       },
       { pattern: ["haiku"], fallback: "claude-haiku-4-5-20251001" },
-      { pattern: ["opus"], fallback: "claude-opus-4-20250514" },
+      { pattern: ["opus"], fallback: "claude-opus-4-8" },
       { pattern: ["sonnet"], fallback: "claude-sonnet-4-5-20250929" },
     ];
 
