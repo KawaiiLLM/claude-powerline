@@ -757,6 +757,8 @@ export class PowerlineRenderer {
       weekly_cost: symbolSet.weekly_cost,
       five_hour: symbolSet.five_hour,
       cache_hit: symbolSet.cache_hit,
+      token_in: symbolSet.token_in,
+      token_out: symbolSet.token_out,
     };
   }
 

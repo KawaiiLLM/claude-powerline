@@ -27,7 +27,7 @@ export interface GitSegmentConfig extends SegmentConfig {
 }
 
 export interface UsageSegmentConfig extends SegmentConfig {
-  type: "cost" | "tokens" | "both" | "breakdown";
+  type: "cost" | "tokens" | "both" | "breakdown" | "io";
   costSource?: "calculated" | "official";
 }
 
@@ -166,6 +166,8 @@ export interface PowerlineSymbols {
   weekly_cost: string;
   five_hour: string;
   cache_hit: string;
+  token_in: string;
+  token_out: string;
 }
 
 export interface SegmentData {
@@ -937,6 +939,16 @@ export class SegmentRenderer {
         return `${formatCost(cost)} (${formatTokens(tokens)})`;
       case "breakdown":
         return formatTokenBreakdown(tokenBreakdown);
+      case "io": {
+        if (!tokenBreakdown) {
+          return `${this.symbols.token_in}0 ${this.symbols.token_out}0`;
+        }
+        const inputTokens =
+          tokenBreakdown.input +
+          tokenBreakdown.cacheCreation +
+          tokenBreakdown.cacheRead;
+        return `${this.symbols.token_in}${formatTokens(inputTokens)} ${this.symbols.token_out}${formatTokens(tokenBreakdown.output)}`;
+      }
       default:
         return formatCost(cost);
     }

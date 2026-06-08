@@ -36,6 +36,8 @@ export const SYMBOLS = {
   weekly_cost: "◑",
   five_hour: "◒",
   cache_hit: "⌁",
+  token_in: "↑",
+  token_out: "↓",
 } as const;
 
 export const BOX_CHARS = {
@@ -96,4 +98,6 @@ export const TEXT_SYMBOLS = {
   weekly_cost: "W",
   five_hour: "5h",
   cache_hit: "C",
+  token_in: "^",
+  token_out: "v",
 } as const;
