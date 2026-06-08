@@ -40,6 +40,8 @@ export interface SessionInfo {
   officialCost: number | null;
   tokens: number | null;
   tokenBreakdown: TokenBreakdown | null;
+  /** Tokens used by THIS session since local midnight today. */
+  todayTokens: number | null;
 }
 
 export interface UsageInfo {
@@ -149,6 +151,7 @@ export class SessionProvider {
         officialCost: null,
         tokens: null,
         tokenBreakdown: null,
+        todayTokens: null,
       };
     }
 
@@ -158,6 +161,18 @@ export class SessionProvider {
       tokenBreakdown.output +
       tokenBreakdown.cacheCreation +
       tokenBreakdown.cacheRead;
+
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    const todayEntries = sessionUsage.entries.filter(
+      (entry) => new Date(entry.timestamp) >= todayMidnight,
+    );
+    const todayBreakdown = this.calculateTokenBreakdown(todayEntries);
+    const todayTokens =
+      todayBreakdown.input +
+      todayBreakdown.output +
+      todayBreakdown.cacheCreation +
+      todayBreakdown.cacheRead;
 
     const calculatedCost = sessionUsage.totalCost;
     const hookDataCost = hookData?.cost?.total_cost_usd ?? null;
@@ -169,6 +184,7 @@ export class SessionProvider {
       officialCost: hookDataCost,
       tokens: totalTokens,
       tokenBreakdown,
+      todayTokens,
     };
   }
 }
@@ -200,6 +216,7 @@ export class UsageProvider {
           officialCost: null,
           tokens: null,
           tokenBreakdown: null,
+          todayTokens: null,
         },
       };
     }

@@ -27,7 +27,7 @@ export interface GitSegmentConfig extends SegmentConfig {
 }
 
 export interface UsageSegmentConfig extends SegmentConfig {
-  type: "cost" | "tokens" | "both" | "breakdown" | "io";
+  type: "cost" | "tokens" | "both" | "breakdown" | "io" | "tokens-today";
   costSource?: "calculated" | "official";
 }
 
@@ -369,6 +369,7 @@ export class SegmentRenderer {
       sessionBudget?.amount,
       sessionBudget?.warningThreshold || 80,
       sessionBudget?.type,
+      usageInfo.session.todayTokens,
     );
 
     const text = `${this.symbols.session_cost} ${formattedUsage}`;
@@ -929,6 +930,7 @@ export class SegmentRenderer {
     tokens: number | null,
     tokenBreakdown: TokenBreakdown | null,
     type: string,
+    todayTokens: number | null = null,
   ): string {
     switch (type) {
       case "cost":
@@ -937,6 +939,8 @@ export class SegmentRenderer {
         return formatTokens(tokens);
       case "both":
         return `${formatCost(cost)} (${formatTokens(tokens)})`;
+      case "tokens-today":
+        return `${formatTokens(tokens)} (${formatTokens(todayTokens)})`;
       case "breakdown":
         return formatTokenBreakdown(tokenBreakdown);
       case "io": {
@@ -962,12 +966,14 @@ export class SegmentRenderer {
     budget: number | undefined,
     warningThreshold = 80,
     budgetType?: "cost" | "tokens",
+    todayTokens: number | null = null,
   ): string {
     const baseDisplay = this.formatUsageDisplay(
       cost,
       tokens,
       tokenBreakdown,
       type,
+      todayTokens,
     );
 
     if (budget && budget > 0) {
