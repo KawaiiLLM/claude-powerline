@@ -148,6 +148,14 @@ const OFFLINE_PRICING_DATA: Record<string, ModelPricing> = {
     cache_write_1h: 6.0,
     cache_read: 0.3,
   },
+  "claude-fable-5": {
+    name: "Claude Fable 5",
+    input: 10.0,
+    output: 50.0,
+    cache_write_5m: 12.5,
+    cache_write_1h: 20.0,
+    cache_read: 1.0,
+  },
 };
 
 export class PricingService {
@@ -357,6 +365,10 @@ export class PricingService {
       }
     }
     const patterns = [
+      {
+        pattern: ["fable-5", "fable-5.0", "claude-fable-5", "fable"],
+        fallback: "claude-fable-5",
+      },
       {
         pattern: ["opus-4-8", "opus-4.8", "claude-opus-4-8"],
         fallback: "claude-opus-4-8",

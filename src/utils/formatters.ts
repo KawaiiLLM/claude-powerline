@@ -64,14 +64,16 @@ export function formatDuration(seconds: number): string {
 }
 
 const CLAUDE_MODEL_PATTERN =
-  /^(?:(?:global|apac|au|eu|us|us-east-\d|us-west-\d|eu-west-\d|eu-central-\d)\.)?(?:anthropic\.|azure_ai\/|bedrock\/|vertex_ai\/)?claude-(?:(?<family>opus|sonnet|haiku)-(?<newMajor>\d+)(?:-(?<newMinor>\d))?|(?<oldMajor>\d+)(?:-(?<oldMinor>\d))?-(?<oldFamily>opus|sonnet|haiku))(?:[-@]\d{8})?(?:-v\d+:\d+)?(?:-latest)?$/i;
+  /^(?:(?:global|apac|au|eu|us|us-east-\d|us-west-\d|eu-west-\d|eu-central-\d)\.)?(?:anthropic\.|azure_ai\/|bedrock\/|vertex_ai\/)?claude-(?:(?<family>opus|sonnet|haiku|fable)-(?<newMajor>\d+)(?:-(?<newMinor>\d))?|(?<oldMajor>\d+)(?:-(?<oldMinor>\d))?-(?<oldFamily>opus|sonnet|haiku|fable))(?:[-@]\d{8})?(?:-v\d+:\d+)?(?:-latest)?$/i;
 
 export function formatModelName(rawName: string): string {
   if (!rawName) {
     return "Claude";
   }
 
-  const cleaned = rawName.trim().replace(/\(\s*(\d+[KMG]?)\s*context\s*\)/i, "($1)");
+  const cleaned = rawName
+    .trim()
+    .replace(/\(\s*(\d+[KMG]?)\s*context\s*\)/i, "($1)");
 
   const match = cleaned.match(CLAUDE_MODEL_PATTERN);
   if (!match?.groups) {
