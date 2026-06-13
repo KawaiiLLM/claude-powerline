@@ -16,8 +16,8 @@ export const darkTheme: ColorTheme = {
   version: { bg: "#3a3a4a", fg: "#b8b8d0" },
   env: { bg: "#2d2d3d", fg: "#d0a0d0" },
   weekly: { bg: "#202020", fg: "#ffa44f" },
-  cacheHit: { bg: "#1a1a1a", fg: "#cdef4f" },
-  fiveHour: { bg: "#262626", fg: "#a78bfa" },
+  cacheHit: { bg: "#1a1a1a", fg: "#a78bfa" },
+  fiveHour: { bg: "#262626", fg: "#cdef4d" },
 };
 
 export const darkAnsi256Theme: ColorTheme = {
