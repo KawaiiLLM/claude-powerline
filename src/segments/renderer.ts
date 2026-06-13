@@ -197,6 +197,65 @@ const BAR_STYLES: Record<string, BarStyleDef> = {
   squares: { filled: "◼", empty: "◻" },
 };
 
+// Per-level colour for the reasoning-effort label, a "windowed rainbow" over
+// Claude Code's own palette: every level is a 2-stop gradient spanning two
+// adjacent anchors of one global cool->hot ramp, warming left->right like the
+// /effort Faster->Smarter axis. Short hue travel keeps each word a gentle sheen;
+// together the levels sweep the whole rainbow, with max the hot hero.
+const EFFORT_RAMP: Record<string, number[][]> = {
+  low: [
+    [155, 130, 200], // rainbow_indigo
+    [130, 170, 220], // rainbow_blue
+  ],
+  medium: [
+    [130, 170, 220], // rainbow_blue
+    [145, 200, 130], // rainbow_green
+  ],
+  high: [
+    [145, 200, 130], // rainbow_green
+    [250, 195, 95], // rainbow_yellow
+  ],
+  xhigh: [
+    [250, 195, 95], // rainbow_yellow
+    [245, 139, 87], // rainbow_orange
+  ],
+  max: [
+    [235, 95, 87], // rainbow_red
+    [255, 0, 135], // vibrant pink
+  ],
+};
+
+/**
+ * Paint the effort label per EFFORT_RAMP, restoring the segment fg afterwards.
+ * Only applies in truecolor mode (the baked segment fg is a 38;2 escape); on
+ * lower colour depths or for an unknown level it returns the plain label so the
+ * segment's own fg is used. The escapes are stripped by visibleLength, so
+ * segment width and wrapping are unaffected.
+ */
+function colorizeEffort(effort: string, restoreFg: string): string {
+  const stops = EFFORT_RAMP[effort.toLowerCase()];
+  if (!stops || stops.length === 0 || !restoreFg.startsWith("\x1b[38;2;")) {
+    return effort;
+  }
+  const chars = [...effort];
+  const last = stops.length - 1;
+  const painted = chars
+    .map((ch, idx) => {
+      const t = chars.length <= 1 ? 0 : idx / (chars.length - 1);
+      const span = last * t;
+      const i = Math.min(Math.floor(span), last);
+      const a = stops[i] ?? stops[0]!;
+      const b = stops[Math.min(i + 1, last)] ?? a;
+      const f = span - Math.floor(span);
+      const r = Math.round(a[0]! + (b[0]! - a[0]!) * f);
+      const g = Math.round(a[1]! + (b[1]! - a[1]!) * f);
+      const bl = Math.round(a[2]! + (b[2]! - a[2]!) * f);
+      return `\x1b[38;2;${r};${g};${bl}m${ch}`;
+    })
+    .join("");
+  return `${painted}${restoreFg}`;
+}
+
 export class SegmentRenderer {
   constructor(
     private readonly config: PowerlineConfig,
@@ -349,7 +408,9 @@ export class SegmentRenderer {
     const effort = hookData.effort?.level || getEffortLevel();
     if (effort) {
       const base = modelName.replace(/\s*\([^)]*\)\s*$/, "");
-      modelName = `${base} (${effort})`;
+      // Tint the level per the /effort ramp (max gets a pink->red gradient);
+      // colors.modelFg restores the segment fg after the coloured word.
+      modelName = `${base} (${colorizeEffort(effort, colors.modelFg)})`;
     }
 
     return {
