@@ -5,6 +5,7 @@ import type { PowerlineColors } from "../themes";
 import type { PowerlineConfig } from "../config/loader";
 import type { BlockInfo } from "./block";
 import { formatModelName, abbreviateFishStyle } from "../utils/formatters";
+import { swapAnsiRole } from "../utils/colors";
 
 export interface SegmentConfig {
   enabled: boolean;
@@ -460,9 +461,11 @@ export class SegmentRenderer {
     let fgColor = colors.contextFg;
 
     if (contextInfo.contextLeftPercentage <= 40) {
-      // Alert: invert into a solid low-saturation amber chip (dark text).
-      bgColor = colors.contextWarningBg;
-      fgColor = colors.contextWarningFg;
+      // Alert: true fg/bg inversion — fill with the segment's own colour,
+      // dark text. swapAnsiRole keeps the escapes role-correct so the
+      // powerline arrow drawn from bgColor also picks up the fill colour.
+      bgColor = swapAnsiRole(colors.contextFg);
+      fgColor = swapAnsiRole(colors.contextBg);
     }
 
     const pct =
@@ -837,9 +840,9 @@ export class SegmentRenderer {
     let bgColor = colors.weeklyBg;
     let fgColor = colors.weeklyFg;
     if (pct >= 50) {
-      // Alert: invert into a solid low-saturation amber chip (dark text).
-      bgColor = colors.contextWarningBg;
-      fgColor = colors.contextWarningFg;
+      // Alert: true fg/bg inversion — orange fill, dark text.
+      bgColor = swapAnsiRole(colors.weeklyFg);
+      fgColor = swapAnsiRole(colors.weeklyBg);
     }
 
     return {
@@ -865,9 +868,9 @@ export class SegmentRenderer {
     let bgColor = colors.fiveHourBg;
     let fgColor = colors.fiveHourFg;
     if (pct >= 50) {
-      // Alert: invert into a solid low-saturation amber chip (dark text).
-      bgColor = colors.contextWarningBg;
-      fgColor = colors.contextWarningFg;
+      // Alert: true fg/bg inversion — violet fill, dark text.
+      bgColor = swapAnsiRole(colors.fiveHourFg);
+      fgColor = swapAnsiRole(colors.fiveHourBg);
     }
 
     return {

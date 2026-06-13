@@ -15,6 +15,34 @@ export function hexToAnsi(hex: string, isBackground: boolean): string {
   return `\x1b[${isBackground ? "48" : "38"};2;${r};${g};${b}m`;
 }
 
+/**
+ * Swap the role of an ANSI colour escape: a foreground sequence becomes the
+ * equivalent background sequence and vice versa. Used to build a true fg/bg
+ * inversion (a solid filled chip) out of a segment's own role-baked colours,
+ * so the arrow drawn from the resulting bg also picks up the right colour.
+ */
+export function swapAnsiRole(ansiCode: string): string {
+  if (!ansiCode) return ansiCode;
+  // truecolor (\x1b[38;2;..) and 256-colour (\x1b[38;5;..): flip only the
+  // role prefix anchored right after the CSI — never the RGB channels, since
+  // a channel value of 38 would otherwise be mistaken for the prefix.
+  if (ansiCode.startsWith("\x1b[38;")) return "\x1b[48;" + ansiCode.slice(5);
+  if (ansiCode.startsWith("\x1b[48;")) return "\x1b[38;" + ansiCode.slice(5);
+  // basic 16-colour: 30-37/90-97 (fg) <-> 40-47/100-107 (bg).
+  const m = ansiCode.match(/\[(\d+)m/);
+  if (m && m[1]) {
+    const code = parseInt(m[1], 10);
+    let swapped = code;
+    if ((code >= 30 && code <= 37) || (code >= 90 && code <= 97)) {
+      swapped = code + 10;
+    } else if ((code >= 40 && code <= 47) || (code >= 100 && code <= 107)) {
+      swapped = code - 10;
+    }
+    return `\x1b[${swapped}m`;
+  }
+  return ansiCode;
+}
+
 export function extractBgToFg(
   ansiCode: string,
   useTextOnly: boolean = false,
