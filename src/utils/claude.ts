@@ -1,5 +1,5 @@
 import { readdir, readFile, stat } from "node:fs/promises";
-import { existsSync, createReadStream } from "node:fs";
+import { existsSync, createReadStream, readFileSync } from "node:fs";
 import { join, posix } from "node:path";
 import { homedir } from "node:os";
 import { createInterface } from "node:readline";
@@ -53,6 +53,34 @@ export interface ClaudeHookData {
       resets_at: number;
     };
   };
+}
+
+/**
+ * Reads the current reasoning effort (e.g. "xhigh", "high") that Claude Code
+ * persists to settings.json when you toggle it. Project-level settings win over
+ * the user-global config dir. Returns null if no effort is set (older CC, etc.).
+ */
+export function getEffortLevel(): string | null {
+  const candidates: string[] = [
+    join(process.cwd(), ".claude", "settings.local.json"),
+    join(process.cwd(), ".claude", "settings.json"),
+    ...getClaudePaths().map((p) => join(p, "settings.json")),
+  ];
+
+  for (const file of candidates) {
+    try {
+      if (!existsSync(file)) continue;
+      const parsed = JSON.parse(readFileSync(file, "utf8"));
+      const effort = parsed?.effortLevel;
+      if (typeof effort === "string" && effort.length > 0) {
+        return effort;
+      }
+    } catch {
+      // ignore unreadable / malformed settings files
+    }
+  }
+
+  return null;
 }
 
 export function getClaudePaths(): string[] {

@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { ClaudeHookData } from "../utils/claude";
+import { getEffortLevel } from "../utils/claude";
 import type { PowerlineColors } from "../themes";
 import type { PowerlineConfig } from "../config/loader";
 import type { BlockInfo } from "./block";
@@ -337,7 +338,16 @@ export class SegmentRenderer {
 
   renderModel(hookData: ClaudeHookData, colors: PowerlineColors): SegmentData {
     const rawName = hookData.model?.display_name || "Claude";
-    const modelName = formatModelName(rawName);
+    let modelName = formatModelName(rawName);
+
+    // Replace the trailing context suffix (e.g. "(1M)") with the current
+    // reasoning effort (e.g. "(xhigh)"), falling back to the raw name if effort
+    // isn't available.
+    const effort = getEffortLevel();
+    if (effort) {
+      const base = modelName.replace(/\s*\([^)]*\)\s*$/, "");
+      modelName = `${base} (${effort})`;
+    }
 
     return {
       text: `${this.symbols.model} ${modelName}`,
