@@ -460,10 +460,15 @@ export class SegmentRenderer {
     let bgColor = colors.contextBg;
     let fgColor = colors.contextFg;
 
-    if (contextInfo.contextLeftPercentage <= 40) {
+    if (
+      contextInfo.contextLeftPercentage <= 40 ||
+      contextInfo.totalTokens >= 300_000
+    ) {
       // Alert: true fg/bg inversion — fill with the segment's own colour,
       // dark text. swapAnsiRole keeps the escapes role-correct so the
       // powerline arrow drawn from bgColor also picks up the fill colour.
+      // The absolute 300k trigger covers large (e.g. 1M) context windows
+      // where 40% left is still a huge number of tokens in flight.
       bgColor = swapAnsiRole(colors.contextFg);
       fgColor = swapAnsiRole(colors.contextBg);
     }
@@ -1046,10 +1051,19 @@ export class SegmentRenderer {
       }
     }
 
+    let bgColor = colors.cacheHitBg;
+    let fgColor = colors.cacheHitFg;
+    if (cacheHitInfo.hitRate < 50) {
+      // Alert: a low cache-hit rate is the bad case here, so invert into a
+      // solid chip (segment colour fill, dark text) like the limit segments.
+      bgColor = swapAnsiRole(colors.cacheHitFg);
+      fgColor = swapAnsiRole(colors.cacheHitBg);
+    }
+
     return {
       text: `${this.symbols.cache_hit} ${cacheHitInfo.hitRate}%${ttlText}`,
-      bgColor: colors.cacheHitBg,
-      fgColor: colors.cacheHitFg,
+      bgColor,
+      fgColor,
     };
   }
 
