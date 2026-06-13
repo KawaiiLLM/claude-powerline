@@ -342,9 +342,11 @@ export class SegmentRenderer {
     let modelName = formatModelName(rawName);
 
     // Replace the trailing context suffix (e.g. "(1M)") with the current
-    // reasoning effort (e.g. "(xhigh)"), falling back to the raw name if effort
-    // isn't available.
-    const effort = getEffortLevel();
+    // reasoning effort (e.g. "(max)"). Prefer the live session value from the
+    // statusline payload — it reflects mid-session /effort changes, including
+    // session-only levels like "max" that never hit settings.json — and fall
+    // back to the persisted settings value on older CC that doesn't send it.
+    const effort = hookData.effort?.level || getEffortLevel();
     if (effort) {
       const base = modelName.replace(/\s*\([^)]*\)\s*$/, "");
       modelName = `${base} (${effort})`;

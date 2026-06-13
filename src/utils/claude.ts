@@ -43,6 +43,13 @@ export interface ClaudeHookData {
     };
   };
   exceeds_200k_tokens?: boolean;
+  // Live reasoning effort for the session (low/medium/high/xhigh/max). Reflects
+  // mid-session /effort changes, including session-only values like "max" that
+  // are never written to settings.json. Absent on older CC (<2.1.153) or when
+  // the model doesn't support the effort parameter. Statusline payload only.
+  effort?: {
+    level: string;
+  };
   rate_limits?: {
     five_hour?: {
       used_percentage: number;
