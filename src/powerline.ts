@@ -639,6 +639,7 @@ export class PowerlineRenderer {
         showRepoName: config?.showRepoName,
       },
       hookData.workspace?.project_dir,
+      hookData.workspace?.repo,
     );
 
     return gitInfo

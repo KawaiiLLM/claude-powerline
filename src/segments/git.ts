@@ -22,6 +22,8 @@ export interface GitInfo {
   stashCount?: number;
   upstream?: string;
   repoName?: string;
+  repoOwner?: string;
+  repoHost?: string;
   isWorktree?: boolean;
 }
 
@@ -71,6 +73,7 @@ export class GitService {
       showRepoName?: boolean;
     } = {},
     projectDir?: string,
+    repoFromPayload?: { host?: string; owner?: string; name?: string },
   ): Promise<GitInfo | null> {
     let gitDir: string;
     const isWorktreeDir = this.isWorktree(workingDir);
@@ -133,7 +136,7 @@ export class GitService {
         lightOperations.upstream = this.getUpstreamAsync(gitDir);
       }
 
-      if (options.showRepoName) {
+      if (options.showRepoName && !repoFromPayload?.name) {
         lightOperations.repoName = this.getRepoNameAsync(gitDir);
       }
 
@@ -186,7 +189,15 @@ export class GitService {
       }
 
       if (options.showRepoName) {
-        result.repoName = resultMap.get("repoName") || undefined;
+        if (repoFromPayload?.name) {
+          // Prefer the host-provided repo identity (origin remote already
+          // parsed by Claude Code): skips the subprocess and yields owner/host.
+          result.repoName = repoFromPayload.name;
+          result.repoOwner = repoFromPayload.owner || undefined;
+          result.repoHost = repoFromPayload.host || undefined;
+        } else {
+          result.repoName = resultMap.get("repoName") || undefined;
+        }
         result.isWorktree = isWorktreeDir;
       }
 

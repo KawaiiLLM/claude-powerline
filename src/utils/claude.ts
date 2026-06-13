@@ -17,6 +17,15 @@ export interface ClaudeHookData {
   workspace: {
     current_dir: string;
     project_dir: string;
+    // Repo identity parsed from the origin remote by Claude Code (statusline
+    // payload). Lets us skip a `git config --get remote.origin.url` subprocess
+    // and exposes owner/host for building links. Absent outside a git repo or
+    // when no origin remote is configured.
+    repo?: {
+      host?: string;
+      owner?: string;
+      name?: string;
+    };
   };
   version?: string;
   output_style?: {
