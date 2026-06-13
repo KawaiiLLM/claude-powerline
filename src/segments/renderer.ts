@@ -459,10 +459,8 @@ export class SegmentRenderer {
     let bgColor = colors.contextBg;
     let fgColor = colors.contextFg;
 
-    if (contextInfo.contextLeftPercentage <= 20) {
-      bgColor = colors.contextCriticalBg;
-      fgColor = colors.contextCriticalFg;
-    } else if (contextInfo.contextLeftPercentage <= 40) {
+    if (contextInfo.contextLeftPercentage <= 40) {
+      // Alert: invert into a solid low-saturation amber chip (dark text).
       bgColor = colors.contextWarningBg;
       fgColor = colors.contextWarningFg;
     }
@@ -838,10 +836,8 @@ export class SegmentRenderer {
 
     let bgColor = colors.weeklyBg;
     let fgColor = colors.weeklyFg;
-    if (pct >= 80) {
-      bgColor = colors.contextCriticalBg;
-      fgColor = colors.contextCriticalFg;
-    } else if (pct >= 50) {
+    if (pct >= 50) {
+      // Alert: invert into a solid low-saturation amber chip (dark text).
       bgColor = colors.contextWarningBg;
       fgColor = colors.contextWarningFg;
     }
@@ -868,10 +864,8 @@ export class SegmentRenderer {
 
     let bgColor = colors.fiveHourBg;
     let fgColor = colors.fiveHourFg;
-    if (pct >= 80) {
-      bgColor = colors.contextCriticalBg;
-      fgColor = colors.contextCriticalFg;
-    } else if (pct >= 50) {
+    if (pct >= 50) {
+      // Alert: invert into a solid low-saturation amber chip (dark text).
       bgColor = colors.contextWarningBg;
       fgColor = colors.contextWarningFg;
     }
