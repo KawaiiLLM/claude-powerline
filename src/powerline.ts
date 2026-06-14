@@ -58,13 +58,21 @@ interface RenderedSegment {
   fgColor: string;
 }
 
-// White theme only: a short cycle of near-white chip backgrounds, applied by
-// segment POSITION rather than name. The theme's per-name ramp flattens once
-// many segments are enabled (adjacent chips become near-equal and the powerline
-// chevrons vanish); cycling by position keeps every neighbour a clear step
-// apart no matter the count, resetting to the brightest every few chips like
-// strands of hair. Order: bright -> mid -> deep, then repeat.
+// A short cycle of chip backgrounds, applied by segment POSITION rather than
+// name. A theme's per-name bgs flatten once many segments are enabled (adjacent
+// chips become near-equal and the powerline chevrons vanish); cycling by
+// position keeps every neighbour a clear step apart no matter the count,
+// resetting every few chips like strands of hair. Order: brightest -> deepest.
+//
+// WHITE rides a near-white cool-slate ramp; DARK rides a neutral-charcoal one
+// widened to #1a1a1a..#3a3a3a so the seamless chevron boundaries stay visible
+// (two near-black tones barely differ in WCAG contrast). The brightest step
+// (#3a3a3a, luma 58) is the ceiling the saturated accent text allows -- the
+// rose/magenta fgs land at ~3.2:1 there, fine for the bold glyphs -- and the
+// directory's warm anchor sits above the cycle's luma gate, so it is left
+// untouched in both themes.
 const WHITE_BG_CYCLE = ["#f3f5fc", "#e4eaf8", "#d5def2"];
+const DARK_BG_CYCLE = ["#1a1a1a", "#2a2a2a", "#3a3a3a"];
 
 export class PowerlineRenderer {
   private readonly symbols: PowerlineSymbols;
@@ -426,7 +434,9 @@ export class PowerlineRenderer {
     let line = colors.reset;
 
     if (this.config.theme === "white") {
-      this.cycleWhiteBackgrounds(segments);
+      this.cycleBackgrounds(segments, WHITE_BG_CYCLE, (luma) => luma >= 140);
+    } else if (this.config.theme === "dark") {
+      this.cycleBackgrounds(segments, DARK_BG_CYCLE, (luma) => luma < 72);
     }
 
     for (let i = 0; i < segments.length; i++) {
@@ -453,10 +463,16 @@ export class PowerlineRenderer {
     return line;
   }
 
-  // Re-paint each light chip from WHITE_BG_CYCLE keyed on its position in the
-  // line, so neighbours always differ regardless of how many segments are on.
-  // Alert chips (inverted to a dark bg) and non-truecolor bgs are left as-is.
-  private cycleWhiteBackgrounds(segments: RenderedSegment[]): void {
+  // Re-paint each kept chip from `palette` keyed on its position in the line, so
+  // neighbours always differ regardless of how many segments are on. `keep`
+  // selects which chips to cycle by luma: it filters out the alert-inverted
+  // chips (a dark bg in white, a bright bg in dark) so they keep popping, and
+  // also clears the directory's warm anchor. Non-truecolor bgs are left as-is.
+  private cycleBackgrounds(
+    segments: RenderedSegment[],
+    palette: string[],
+    keep: (luma: number) => boolean,
+  ): void {
     let k = 0;
     for (const segment of segments) {
       if (!segment) continue;
@@ -464,11 +480,8 @@ export class PowerlineRenderer {
       if (!m) continue; // not a truecolor bg (lower depth) — skip
       const luma =
         0.2126 * Number(m[1]) + 0.7152 * Number(m[2]) + 0.0722 * Number(m[3]);
-      if (luma < 140) continue; // dark = alert-inverted chip — leave it popping
-      segment.bgColor = hexToAnsi(
-        WHITE_BG_CYCLE[k % WHITE_BG_CYCLE.length]!,
-        true,
-      );
+      if (!keep(luma)) continue;
+      segment.bgColor = hexToAnsi(palette[k % palette.length]!, true);
       k++;
     }
   }
