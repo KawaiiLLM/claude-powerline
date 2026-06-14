@@ -460,11 +460,15 @@ export class PowerlineRenderer {
     let k = 0;
     for (const segment of segments) {
       if (!segment) continue;
-      const m = /^\x1b\[48;2;(\d+);(\d+);(\d+)m/.exec(segment.bgColor);
+      const m = /48;2;(\d+);(\d+);(\d+)/.exec(segment.bgColor);
       if (!m) continue; // not a truecolor bg (lower depth) — skip
-      const luma = 0.2126 * Number(m[1]) + 0.7152 * Number(m[2]) + 0.0722 * Number(m[3]);
+      const luma =
+        0.2126 * Number(m[1]) + 0.7152 * Number(m[2]) + 0.0722 * Number(m[3]);
       if (luma < 140) continue; // dark = alert-inverted chip — leave it popping
-      segment.bgColor = hexToAnsi(WHITE_BG_CYCLE[k % WHITE_BG_CYCLE.length]!, true);
+      segment.bgColor = hexToAnsi(
+        WHITE_BG_CYCLE[k % WHITE_BG_CYCLE.length]!,
+        true,
+      );
       k++;
     }
   }
