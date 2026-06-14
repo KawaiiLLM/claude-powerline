@@ -5,7 +5,7 @@ import type { PowerlineColors } from "../themes";
 import type { PowerlineConfig } from "../config/loader";
 import type { BlockInfo } from "./block";
 import { formatModelName, abbreviateFishStyle } from "../utils/formatters";
-import { swapAnsiRole } from "../utils/colors";
+import { swapAnsiRole, hexToAnsi } from "../utils/colors";
 
 export interface SegmentConfig {
   enabled: boolean;
@@ -572,16 +572,26 @@ export class SegmentRenderer {
     let fgColor = colors.contextFg;
 
     if (
+      contextInfo.contextLeftPercentage <= 20 ||
+      contextInfo.totalTokens >= 500_000
+    ) {
+      // Urgent: saturated aqua fill (own-colour inversion), dark text.
+      // swapAnsiRole keeps the escapes role-correct so the powerline arrow
+      // drawn from bgColor also picks up the fill colour. The absolute 500k
+      // trigger covers large (e.g. 1M) context windows where 20% left is
+      // still a huge number of tokens in flight.
+      bgColor = swapAnsiRole(colors.contextFg);
+      fgColor = swapAnsiRole(colors.contextBg);
+    } else if (
       contextInfo.contextLeftPercentage <= 40 ||
       contextInfo.totalTokens >= 300_000
     ) {
-      // Alert: true fg/bg inversion — fill with the segment's own colour,
-      // dark text. swapAnsiRole keeps the escapes role-correct so the
-      // powerline arrow drawn from bgColor also picks up the fill colour.
-      // The absolute 300k trigger covers large (e.g. 1M) context windows
-      // where 40% left is still a huge number of tokens in flight.
-      bgColor = swapAnsiRole(colors.contextFg);
-      fgColor = swapAnsiRole(colors.contextBg);
+      // Caution: pale aqua fill, dark text -- the soft tone of context's own
+      // hue, a "running low, heads up" step below the vivid urgent fill. The
+      // 300k absolute trigger mirrors the urgent tier's 500k for large (1M)
+      // windows where 40% left is still a huge number of tokens in flight.
+      bgColor = hexToAnsi("#95ece4", true);
+      fgColor = hexToAnsi("#1a1a1a", false);
     }
 
     const pct =
@@ -955,10 +965,17 @@ export class SegmentRenderer {
 
     let bgColor = colors.weeklyBg;
     let fgColor = colors.weeklyFg;
-    if (pct >= 50) {
-      // Alert: true fg/bg inversion — orange fill, dark text.
+    if (pct >= 80) {
+      // Escalated alert: weekly's own saturated orange fill (true fg/bg
+      // inversion), dark text -- the urgent signal as the limit nears.
       bgColor = swapAnsiRole(colors.weeklyFg);
       fgColor = swapAnsiRole(colors.weeklyBg);
+    } else if (pct >= 50) {
+      // Caution: solid warm-peach fill, dark text. A soft peach reads as a
+      // "past halfway, heads up" nudge -- gentler than the saturated orange,
+      // which is held back to mark the more urgent >=80% escalation.
+      bgColor = hexToAnsi("#faae7f", true);
+      fgColor = hexToAnsi("#1a1a1a", false);
     }
 
     return {
@@ -983,10 +1000,15 @@ export class SegmentRenderer {
 
     let bgColor = colors.fiveHourBg;
     let fgColor = colors.fiveHourFg;
-    if (pct >= 50) {
-      // Alert: true fg/bg inversion — violet fill, dark text.
+    if (pct >= 80) {
+      // Escalated: saturated lime fill (own-colour inversion), dark text.
       bgColor = swapAnsiRole(colors.fiveHourFg);
       fgColor = swapAnsiRole(colors.fiveHourBg);
+    } else if (pct >= 50) {
+      // Caution: pale lime fill, dark text -- the soft tone of 5h's own hue,
+      // a "past halfway" nudge below the vivid >=80% escalation.
+      bgColor = hexToAnsi("#edfc88", true);
+      fgColor = hexToAnsi("#1a1a1a", false);
     }
 
     return {
@@ -1165,10 +1187,16 @@ export class SegmentRenderer {
     let bgColor = colors.cacheHitBg;
     let fgColor = colors.cacheHitFg;
     if (cacheHitInfo.hitRate < 50) {
-      // Alert: a low cache-hit rate is the bad case here, so invert into a
-      // solid chip (segment colour fill, dark text) like the limit segments.
+      // Escalated: saturated violet fill (own-colour inversion), dark text --
+      // a hit rate below 50% is the urgent case.
       bgColor = swapAnsiRole(colors.cacheHitFg);
       fgColor = swapAnsiRole(colors.cacheHitBg);
+    } else if (cacheHitInfo.hitRate < 90) {
+      // Caution: pale violet fill, dark text -- cache hit rates normally sit
+      // high (90%+), so slipping below 90% is a soft "heads up" below the
+      // vivid <50% escalation.
+      bgColor = hexToAnsi("#cca9e7", true);
+      fgColor = hexToAnsi("#1a1a1a", false);
     }
 
     return {
