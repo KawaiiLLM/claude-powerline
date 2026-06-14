@@ -202,7 +202,13 @@ const BAR_STYLES: Record<string, BarStyleDef> = {
 // adjacent anchors of one global cool->hot ramp, warming left->right like the
 // /effort Faster->Smarter axis. Short hue travel keeps each word a gentle sheen;
 // together the levels sweep the whole rainbow, with max the hot hero.
-const EFFORT_RAMP: Record<string, number[][]> = {
+//
+// Two tunings of the same windowed rainbow: DARK is the muted CC palette that
+// pops on dark segment bgs; LIGHT is a deeper jewel set for light/silver bgs,
+// where the pastels would wash out. The ramp is chosen per call from the
+// segment background's luminance, so dark, light and the white/silver theme are
+// all served by one code path.
+const EFFORT_RAMP_DARK: Record<string, number[][]> = {
   low: [
     [155, 130, 200], // rainbow_indigo
     [130, 170, 220], // rainbow_blue
@@ -225,15 +231,54 @@ const EFFORT_RAMP: Record<string, number[][]> = {
   ],
 };
 
+const EFFORT_RAMP_LIGHT: Record<string, number[][]> = {
+  low: [
+    [99, 91, 201], // deep indigo
+    [56, 108, 222], // royal blue
+  ],
+  medium: [
+    [56, 108, 222], // royal blue
+    [40, 160, 99], // emerald
+  ],
+  high: [
+    [40, 160, 99], // emerald
+    [202, 150, 30], // gold
+  ],
+  xhigh: [
+    [202, 150, 30], // gold
+    [228, 104, 40], // burnt orange
+  ],
+  max: [
+    [212, 52, 52], // crimson
+    [214, 40, 128], // fuchsia
+  ],
+};
+
+/** Rec. 709 luma (0-255) of a `\x1b[48;2;R;G;Bm` bg escape, or null if absent. */
+function bgLuminance(restoreBg: string): number | null {
+  const m = /48;2;(\d+);(\d+);(\d+)/.exec(restoreBg);
+  if (!m) return null;
+  return 0.2126 * Number(m[1]) + 0.7152 * Number(m[2]) + 0.0722 * Number(m[3]);
+}
+
 /**
- * Paint the effort label per EFFORT_RAMP, restoring the segment fg afterwards.
- * Only applies in truecolor mode (the baked segment fg is a 38;2 escape); on
- * lower colour depths or for an unknown level it returns the plain label so the
- * segment's own fg is used. The escapes are stripped by visibleLength, so
- * segment width and wrapping are unaffected.
+ * Paint the effort label with the windowed-rainbow ramp, restoring the segment
+ * fg afterwards. The ramp follows the segment background's luminance (deeper
+ * jewel tones on light bgs, muted pastels on dark). Only applies in truecolor
+ * mode (the baked segment fg is a 38;2 escape); on lower colour depths or for an
+ * unknown level it returns the plain label so the segment's own fg is used. The
+ * escapes are stripped by visibleLength, so segment width and wrapping are
+ * unaffected.
  */
-function colorizeEffort(effort: string, restoreFg: string): string {
-  const stops = EFFORT_RAMP[effort.toLowerCase()];
+function colorizeEffort(
+  effort: string,
+  restoreFg: string,
+  restoreBg: string,
+): string {
+  const luma = bgLuminance(restoreBg);
+  const ramp =
+    luma !== null && luma >= 140 ? EFFORT_RAMP_LIGHT : EFFORT_RAMP_DARK;
+  const stops = ramp[effort.toLowerCase()];
   if (!stops || stops.length === 0 || !restoreFg.startsWith("\x1b[38;2;")) {
     return effort;
   }
@@ -409,8 +454,9 @@ export class SegmentRenderer {
     if (effort) {
       const base = modelName.replace(/\s*\([^)]*\)\s*$/, "");
       // Tint the level per the /effort ramp (max gets a pink->red gradient);
-      // colors.modelFg restores the segment fg after the coloured word.
-      modelName = `${base} (${colorizeEffort(effort, colors.modelFg)})`;
+      // colors.modelFg restores the segment fg after the coloured word, and
+      // colors.modelBg picks the light- vs dark-bg rainbow tuning.
+      modelName = `${base} (${colorizeEffort(effort, colors.modelFg, colors.modelBg)})`;
     }
 
     return {
