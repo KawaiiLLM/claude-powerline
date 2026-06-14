@@ -197,62 +197,40 @@ const BAR_STYLES: Record<string, BarStyleDef> = {
   squares: { filled: "◼", empty: "◻" },
 };
 
-// Per-level colour for the reasoning-effort label, a "windowed rainbow" over
-// Claude Code's own palette: every level is a 2-stop gradient spanning two
-// adjacent anchors of one global cool->hot ramp, warming left->right like the
-// /effort Faster->Smarter axis. Short hue travel keeps each word a gentle sheen;
-// together the levels sweep the whole rainbow, with max the hot hero.
-//
-// Two tunings of the same windowed rainbow: DARK is the muted CC palette that
-// pops on dark segment bgs; LIGHT is a deeper jewel set for light/silver bgs,
-// where the pastels would wash out. The ramp is chosen per call from the
-// segment background's luminance, so dark, light and the white/silver theme are
-// all served by one code path.
-const EFFORT_RAMP_DARK: Record<string, number[][]> = {
-  low: [
-    [155, 130, 200], // rainbow_indigo
-    [130, 170, 220], // rainbow_blue
-  ],
-  medium: [
-    [130, 170, 220], // rainbow_blue
-    [145, 200, 130], // rainbow_green
-  ],
-  high: [
-    [145, 200, 130], // rainbow_green
-    [250, 195, 95], // rainbow_yellow
-  ],
-  xhigh: [
-    [250, 195, 95], // rainbow_yellow
-    [245, 139, 87], // rainbow_orange
-  ],
-  max: [
-    [235, 95, 87], // rainbow_red
-    [255, 0, 135], // vibrant pink
-  ],
-};
+// Claude Code's reasoning-effort palette: the seven rainbow anchors its /effort
+// slider scrolls across the "max" label (CC theme.ts lightTheme rainbow_red..
+// rainbow_violet -- the exact rgb values). CC_RAINBOW pops on dark chips;
+// CC_RAINBOW_DEEP is the same hues halved in luminance so they still read on a
+// near-white chip. Order is ROYGBIV(+violet), matching CC's VJ5 array.
+const CC_RAINBOW: number[][] = [
+  [235, 95, 87], // rainbow_red
+  [245, 139, 87], // rainbow_orange
+  [250, 195, 95], // rainbow_yellow
+  [145, 200, 130], // rainbow_green
+  [130, 170, 220], // rainbow_blue
+  [155, 130, 200], // rainbow_indigo
+  [200, 130, 180], // rainbow_violet
+];
+const CC_RAINBOW_DEEP: number[][] = CC_RAINBOW.map((c) => [
+  Math.round(c[0]! * 0.5),
+  Math.round(c[1]! * 0.5),
+  Math.round(c[2]! * 0.5),
+]);
 
-const EFFORT_RAMP_LIGHT: Record<string, number[][]> = {
-  low: [
-    [99, 91, 201], // deep indigo
-    [56, 108, 222], // royal blue
-  ],
-  medium: [
-    [56, 108, 222], // royal blue
-    [40, 160, 99], // emerald
-  ],
-  high: [
-    [40, 160, 99], // emerald
-    [202, 150, 30], // gold
-  ],
-  xhigh: [
-    [202, 150, 30], // gold
-    [228, 104, 40], // burnt orange
-  ],
-  max: [
-    [212, 52, 52], // crimson
-    [214, 40, 128], // fuchsia
-  ],
-};
+// CC escalates the effort label by level (its qAq map): the lower three are
+// flat semantic colours (low->warning, medium->success, high->permission),
+// xhigh sweeps a single bright glyph across a violet base (autoAccept-shimmer),
+// and max scrolls the rainbow (rainbow-animated). Each colour is a { dark,
+// light } pair -- CC's dark-theme value (pops on dark chips) and its light-theme
+// value (reads on near-white) -- the exact rgb from CC's theme.ts.
+const EFFORT_LEVEL_COLOR: Record<string, { dark: number[]; light: number[] }> =
+  {
+    low: { dark: [255, 193, 7], light: [150, 108, 30] }, // warning / amber
+    medium: { dark: [78, 186, 101], light: [44, 122, 57] }, // success / green
+    high: { dark: [177, 185, 249], light: [87, 105, 247] }, // permission / blue
+  };
+const EFFORT_XHIGH_BASE = { dark: [175, 135, 255], light: [135, 0, 255] }; // autoAccept violet
+const EFFORT_XHIGH_GLINT = { dark: [222, 205, 255], light: [176, 110, 255] }; // sweep highlight
 
 /** Parse the R,G,B of a `38;2`/`48;2` truecolor escape, or null. */
 function escRgb(esc: string): [number, number, number] | null {
@@ -262,13 +240,17 @@ function escRgb(esc: string): [number, number, number] | null {
 }
 
 /**
- * Paint the effort label with the windowed-rainbow ramp, restoring the segment
- * fg afterwards. The ramp follows the segment background's luminance (deeper
- * jewel tones on light bgs, muted pastels on dark). Only applies in truecolor
- * mode (the baked segment fg is a 38;2 escape); on lower colour depths or for an
- * unknown level it returns the plain label so the segment's own fg is used. The
- * escapes are stripped by visibleLength, so segment width and wrapping are
- * unaffected.
+ * Paint the effort label with Claude Code's per-level escalation (its /effort
+ * slider): low/medium/high are a flat semantic colour, xhigh sweeps a single
+ * bright glyph across a violet base (a glint that advances every 100ms), and max
+ * scrolls the rainbow (char i takes palette[(i + tick) % 7]). The palette
+ * follows the segment background's luminance -- CC's dark-theme tones on dark
+ * chips, its light-theme tones on near-white -- while a saturated mid-luminance
+ * chip (the light theme's rose model chip) keeps the plain segment fg, since
+ * every hue washes out on it. Truecolor only; escapes are stripped by
+ * visibleLength so width is unaffected. The statusline is re-invoked
+ * periodically rather than per frame, so the animations step by the number of
+ * 100ms ticks elapsed between refreshes.
  */
 function colorizeEffort(
   effort: string,
@@ -281,37 +263,44 @@ function colorizeEffort(
   const [cr, cg, cb] = bg;
   const luma = 0.2126 * cr + 0.7152 * cg + 0.0722 * cb;
   const chroma = Math.max(cr, cg, cb) - Math.min(cr, cg, cb);
-  // A saturated, mid-luminance chip (e.g. the light theme's rose model chip:
-  // luma ~106, chroma ~191) sits inside the rainbow's own hue and luminance
-  // range, so every ramp colour collides with it and washes out -- readable
-  // text there has to be near-black. Fall back to the segment's plain dark fg
-  // for such chips. Greys (low chroma), dark chips and near-white chips clear
-  // the rainbow's range, so they keep it.
+  // Saturated mid-luminance chip (the light theme's rose model chip): every hue
+  // collides with it and washes out, so keep the plain dark fg. Greys, dark and
+  // near-white chips clear that range.
   if (chroma >= 80 && luma > 70 && luma < 190) return effort;
-  // >=120 counts as a light chip: near-white chips wash out the muted pastels,
-  // so they take the deeper jewel ramp; dark chips keep the bright pastels.
-  const ramp = luma >= 120 ? EFFORT_RAMP_LIGHT : EFFORT_RAMP_DARK;
-  const stops = ramp[effort.toLowerCase()];
-  if (!stops || stops.length === 0) {
-    return effort;
-  }
+  const light = luma >= 140; // near-white chip -> CC's deeper light-theme tones
+  const level = effort.toLowerCase();
+  const tick = Math.floor(Date.now() / 100);
+  const esc = (c: number[]) => `\x1b[38;2;${c[0]!};${c[1]!};${c[2]!}m`;
   const chars = [...effort];
-  const last = stops.length - 1;
-  const painted = chars
-    .map((ch, idx) => {
-      const t = chars.length <= 1 ? 0 : idx / (chars.length - 1);
-      const span = last * t;
-      const i = Math.min(Math.floor(span), last);
-      const a = stops[i] ?? stops[0]!;
-      const b = stops[Math.min(i + 1, last)] ?? a;
-      const f = span - Math.floor(span);
-      const r = Math.round(a[0]! + (b[0]! - a[0]!) * f);
-      const g = Math.round(a[1]! + (b[1]! - a[1]!) * f);
-      const bl = Math.round(a[2]! + (b[2]! - a[2]!) * f);
-      return `\x1b[38;2;${r};${g};${bl}m${ch}`;
-    })
-    .join("");
-  return `${painted}${restoreFg}`;
+
+  // max: rainbow-animated -- the rainbow scrolls across the word over time.
+  if (level === "max") {
+    const palette = light ? CC_RAINBOW_DEEP : CC_RAINBOW;
+    const n = palette.length;
+    const painted = chars
+      .map((ch, i) => `${esc(palette[(i + tick) % n]!)}${ch}`)
+      .join("");
+    return `${painted}${restoreFg}`;
+  }
+
+  // xhigh: autoAccept-shimmer -- one bright glint sweeps the violet base, with a
+  // +4 gap after the word so it pauses before re-entering.
+  if (level === "xhigh") {
+    const base = esc(light ? EFFORT_XHIGH_BASE.light : EFFORT_XHIGH_BASE.dark);
+    const glint = esc(
+      light ? EFFORT_XHIGH_GLINT.light : EFFORT_XHIGH_GLINT.dark,
+    );
+    const z = tick % (chars.length + 4);
+    const painted = chars
+      .map((ch, i) => `${i === z ? glint : base}${ch}`)
+      .join("");
+    return `${painted}${restoreFg}`;
+  }
+
+  // low / medium / high: a single flat CC semantic colour.
+  const lc = EFFORT_LEVEL_COLOR[level];
+  if (!lc) return effort;
+  return `${esc(light ? lc.light : lc.dark)}${effort}${restoreFg}`;
 }
 
 export class SegmentRenderer {
