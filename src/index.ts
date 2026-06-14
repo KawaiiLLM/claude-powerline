@@ -20,7 +20,7 @@ Debugging:
   CLAUDE_POWERLINE_DEBUG=1 Enable debug logging for troubleshooting
 
 Claude Code Options (for settings.json):
-  --theme=THEME            Set theme: dark, light, nord, tokyo-night, rose-pine, custom
+  --theme=THEME            Set theme: dark, light, white, nord, tokyo-night, rose-pine, gruvbox, custom
   --style=STYLE            Set separator style: minimal, powerline, capsule, tui
   --charset=CHARSET        Set character set: unicode (default), text
   --config=PATH            Use custom config file path

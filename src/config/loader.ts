@@ -66,6 +66,7 @@ export interface PowerlineConfig {
   theme:
     | "light"
     | "dark"
+    | "white"
     | "nord"
     | "tokyo-night"
     | "rose-pine"
@@ -83,6 +84,7 @@ function isValidTheme(theme: string): theme is PowerlineConfig["theme"] {
   return [
     "light",
     "dark",
+    "white",
     "nord",
     "tokyo-night",
     "rose-pine",
