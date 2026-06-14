@@ -254,11 +254,11 @@ const EFFORT_RAMP_LIGHT: Record<string, number[][]> = {
   ],
 };
 
-/** Rec. 709 luma (0-255) of a `\x1b[48;2;R;G;Bm` bg escape, or null if absent. */
-function bgLuminance(restoreBg: string): number | null {
-  const m = /48;2;(\d+);(\d+);(\d+)/.exec(restoreBg);
+/** Parse the R,G,B of a `38;2`/`48;2` truecolor escape, or null. */
+function escRgb(esc: string): [number, number, number] | null {
+  const m = /[34]8;2;(\d+);(\d+);(\d+)/.exec(esc);
   if (!m) return null;
-  return 0.2126 * Number(m[1]) + 0.7152 * Number(m[2]) + 0.0722 * Number(m[3]);
+  return [Number(m[1]), Number(m[2]), Number(m[3])];
 }
 
 /**
@@ -275,11 +275,24 @@ function colorizeEffort(
   restoreFg: string,
   restoreBg: string,
 ): string {
-  const luma = bgLuminance(restoreBg);
-  const ramp =
-    luma !== null && luma >= 140 ? EFFORT_RAMP_LIGHT : EFFORT_RAMP_DARK;
+  if (!restoreFg.startsWith("\x1b[38;2;")) return effort;
+  const bg = escRgb(restoreBg);
+  if (!bg) return effort;
+  const [cr, cg, cb] = bg;
+  const luma = 0.2126 * cr + 0.7152 * cg + 0.0722 * cb;
+  const chroma = Math.max(cr, cg, cb) - Math.min(cr, cg, cb);
+  // A saturated, mid-luminance chip (e.g. the light theme's rose model chip:
+  // luma ~106, chroma ~191) sits inside the rainbow's own hue and luminance
+  // range, so every ramp colour collides with it and washes out -- readable
+  // text there has to be near-black. Fall back to the segment's plain dark fg
+  // for such chips. Greys (low chroma), dark chips and near-white chips clear
+  // the rainbow's range, so they keep it.
+  if (chroma >= 80 && luma > 70 && luma < 190) return effort;
+  // >=120 counts as a light chip: near-white chips wash out the muted pastels,
+  // so they take the deeper jewel ramp; dark chips keep the bright pastels.
+  const ramp = luma >= 120 ? EFFORT_RAMP_LIGHT : EFFORT_RAMP_DARK;
   const stops = ramp[effort.toLowerCase()];
-  if (!stops || stops.length === 0 || !restoreFg.startsWith("\x1b[38;2;")) {
+  if (!stops || stops.length === 0) {
     return effort;
   }
   const chars = [...effort];
