@@ -1,23 +1,27 @@
 import type { ColorTheme } from "./index";
 
+// dark and light are a fg<->bg inversion of each other: each segment's bright
+// accent is dark's *text* and light's *chip*, so these fgs are kept identical
+// to the light theme's bgs (the rainbow-streak palette). directory is the lone
+// exception -- a warm anchor with white text in both themes, not a spectrum hue.
 export const darkTheme: ColorTheme = {
   directory: { bg: "#8b4513", fg: "#ffffff" },
-  git: { bg: "#404040", fg: "#ffffff" },
-  model: { bg: "#2d2d2d", fg: "#ff5cb0" },
-  session: { bg: "#202020", fg: "#5a90ff" },
-  block: { bg: "#2a2a2a", fg: "#87ceeb" },
+  git: { bg: "#404040", fg: "#cba8e8" },
+  model: { bg: "#2d2d2d", fg: "#fd3e74" },
+  session: { bg: "#202020", fg: "#5ecdff" },
+  block: { bg: "#2a2a2a", fg: "#a2daf4" },
   today: { bg: "#1a1a1a", fg: "#ffd64f" },
-  tmux: { bg: "#2f4f2f", fg: "#90ee90" },
-  context: { bg: "#2d2d2d", fg: "#3fccc9" },
+  tmux: { bg: "#2f4f2f", fg: "#eefd87" },
+  context: { bg: "#2d2d2d", fg: "#53fae0" },
   // Alerts invert into a solid warm chip (dark text); no red for now.
   contextWarning: { bg: "#d9820e", fg: "#1a1a1a" },
   contextCritical: { bg: "#f59e0b", fg: "#1a1a1a" },
-  metrics: { bg: "#374151", fg: "#d1d5db" },
-  version: { bg: "#3a3a4a", fg: "#b8b8d0" },
-  env: { bg: "#2d2d3d", fg: "#d0a0d0" },
-  weekly: { bg: "#202020", fg: "#ffa44f" },
-  cacheHit: { bg: "#1a1a1a", fg: "#a78bfa" },
-  fiveHour: { bg: "#262626", fg: "#cdef4d" },
+  metrics: { bg: "#374151", fg: "#95ece3" },
+  version: { bg: "#3a3a4a", fg: "#dc71f6" },
+  env: { bg: "#2d2d3d", fg: "#faae80" },
+  weekly: { bg: "#202020", fg: "#ff9458" },
+  cacheHit: { bg: "#1a1a1a", fg: "#a87af0" },
+  fiveHour: { bg: "#262626", fg: "#dcef49" },
 };
 
 export const darkAnsi256Theme: ColorTheme = {
