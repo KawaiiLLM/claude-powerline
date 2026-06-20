@@ -16,6 +16,41 @@
 
 </div>
 
+> [!NOTE]
+> **This is a personal fork** — [KawaiiLLM/claude-powerline](https://github.com/KawaiiLLM/claude-powerline), built on top of [Owloops/claude-powerline](https://github.com/Owloops/claude-powerline) v1.23.5. It re-centres the model segment on **live reasoning effort**, adds **5-hour** and **cache-hit** segments, a **two-tier alert escalation**, and a redesigned **dark / light / white** theme trio. See [What this fork adds](#what-this-fork-adds).
+
+## What this fork adds
+
+On top of upstream v1.23.5:
+
+- **Live reasoning effort in the model segment** — shows the current `/effort` level (`low · medium · high · xhigh · max`) with Claude Code's own per-level treatment: flat semantic colours for low/medium/high, a glint sweep for xhigh, and a scrolling rainbow for max.
+- **`fiveHour` segment** — 5-hour rate-limit utilisation with reset countdown (native `rate_limits.five_hour`).
+- **`cacheHit` segment** — prompt-cache hit rate with TTL countdown.
+- **New `session` token modes** — `io` (↑input ↓output) and `tokens-today` (session total + today's slice).
+- **Two-tier alert escalation** — `weekly` / `fiveHour` / `context` / `cacheHit` step through the segment's **pale** tone (caution) then its **saturated** tone (urgent): the hue stays constant, so a chip tells you *which* limit and *how close*.
+
+  | Segment | Caution (pale) | Urgent (saturated) |
+  | --- | --- | --- |
+  | `weekly` | ≥ 50% | ≥ 80% |
+  | `fiveHour` | ≥ 50% | ≥ 80% |
+  | `context` | ≤ 40% left or ≥ 300k | ≤ 20% left or ≥ 500k |
+  | `cacheHit` | < 90% | < 50% |
+
+- **Redesigned themes** — `dark` and `light` are now an fg↔bg inversion pair built from one 13-colour "rainbow-streak" palette, plus a new near-white `white` theme. Chip backgrounds cycle by position so neighbours stay distinct.
+- **Pricing** — adds Opus 4.8 and Fable 5, and fixes the generic `opus` fallback to the current tier.
+
+### Theme preview
+
+Live render of the same statusline across the three reworked themes (segments wrap to a second line):
+
+<img src="images/fork-theme-dark.png" alt="dark theme" width="860"><br>
+<img src="images/fork-theme-light.png" alt="light theme" width="860"><br>
+<img src="images/fork-theme-white.png" alt="white theme" width="860">
+
+And the two-tier alert escalation — the same segments at their caution vs. urgent thresholds (dark theme). Each hue holds; only the fill goes from pale to saturated:
+
+<img src="images/fork-theme-alerts.png" alt="two-tier alert escalation" width="860">
+
 ## Installation
 
 Requires Node.js 18+, Claude Code, and Git 2.0+. For best display, install a [Nerd Font](https://www.nerdfonts.com/) or use `--charset=text` for ASCII-only symbols.
@@ -48,6 +83,23 @@ Add to your Claude Code `settings.json`:
 
 Start a Claude session and the statusline appears at the bottom. Using `npx` automatically downloads and runs the latest version without manual updates.
 
+> [!IMPORTANT]
+> The commands above install **upstream** from npm. This fork is not published to npm — to run *this* version, clone and build it, then point your statusline at the local build:
+>
+> ```bash
+> git clone https://github.com/KawaiiLLM/claude-powerline.git
+> cd claude-powerline && npm install && npm run build
+> ```
+>
+> ```json
+> {
+>   "statusLine": {
+>     "type": "command",
+>     "command": "node /absolute/path/to/claude-powerline/dist/index.mjs --style=powerline --theme=dark"
+>   }
+> }
+> ```
+
 ## Styles
 
 <img src="images/claude-powerline-styles.png" alt="Claude Powerline Styles" width="700">
@@ -56,7 +108,7 @@ Start a Claude session and the statusline appears at the bottom. Using `npx` aut
 
 <img src="images/claude-powerline-themes.png" alt="Claude Powerline Themes" width="700">
 
-6 built-in themes (dark, light, nord, tokyo-night, rose-pine, gruvbox) or [create your own](#configuration).
+7 built-in themes (dark, light, white, nord, tokyo-night, rose-pine, gruvbox) or [create your own](#configuration). In this fork, `dark` / `light` are a reworked rainbow-streak inversion pair and `white` is new — see the [theme preview](#theme-preview) above.
 
 <details>
 <summary><h2>Configuration</h2></summary>
@@ -82,7 +134,7 @@ curl -o ~/.claude/claude-powerline.json https://raw.githubusercontent.com/Owloop
 
 **CLI Options** (both `--arg value` and `--arg=value` syntax supported):
 
-- `--theme` - `dark` (default), `light`, `nord`, `tokyo-night`, `rose-pine`, `gruvbox`, `custom`
+- `--theme` - `dark` (default), `light`, `white`, `nord`, `tokyo-night`, `rose-pine`, `gruvbox`, `custom`
 - `--style` - `minimal` (default), `powerline`, `capsule`, `tui`
 - `--charset` - `unicode` (default), `text`
 - `--config` - Custom config file path
@@ -164,13 +216,15 @@ export CLAUDE_POWERLINE_DEBUG=1  # Enable debug logging
 </details>
 
 <details>
-<summary><strong>Model</strong> - Shows current Claude model being used</summary>
+<summary><strong>Model</strong> - Shows current Claude model and live reasoning effort</summary>
 
 ```json
 "model": {
   "enabled": true
 }
 ```
+
+Displays the model name followed by the current reasoning-effort level in parentheses, e.g. `✱ Opus 4.8 (high)`. The effort label is read live from Claude Code's statusline payload and is tinted with that level's treatment — `low`/`medium`/`high` use a flat semantic colour, `xhigh` runs a glint sweep, and `max` scrolls a rainbow. The colours adapt to the chip background so the label stays legible across themes.
 
 **Symbols:** `✱` Model (unicode) &#8226; `M` Model (text)
 
@@ -189,7 +243,9 @@ export CLAUDE_POWERLINE_DEBUG=1  # Enable debug logging
 
 **Options:**
 
-- `type`: Display format - `cost` | `tokens` | `both` | `breakdown`
+- `type`: Display format - `cost` | `tokens` | `both` | `breakdown` | `io` | `tokens-today`
+  - `io`: Input/output split for the session (e.g. `↑12.4K ↓3.1K`)
+  - `tokens-today`: Session total plus this session's tokens since local midnight (e.g. `177.5K (177.5K)`)
 - `costSource`: Cost calculation method - `calculated` (ccusage-style) | `official` (hook data)
 
 **Symbols:** `§` Session (unicode) &#8226; `S` Session (text)
@@ -330,7 +386,44 @@ Configure context window limits for different model types. Defaults to 200K toke
 
 Only visible when Claude Code provides native `rate_limits.seven_day` data (Claude.ai Pro/Max subscribers). Hidden when the data is not available.
 
+When utilisation crosses a threshold the chip escalates: a **pale** fill at ≥ 50% (caution) and the segment's **saturated** fill at ≥ 80% (urgent).
+
 **Symbols:** `◑` Weekly (unicode) &#8226; `W` Weekly (text)
+
+</details>
+
+<details>
+<summary><strong>FiveHour</strong> - Shows usage within the current 5-hour rate limit window</summary>
+
+```json
+"fiveHour": {
+  "enabled": true,
+  "displayStyle": "text"
+}
+```
+
+**Options:**
+
+- `displayStyle`: Visual style for utilisation display - same options as the block segment
+
+Shows the official 5-hour utilisation percentage and reset countdown. Like `weekly`, the chip escalates through a **pale** fill at ≥ 50% and a **saturated** fill at ≥ 80%. Only visible when Claude Code provides native `rate_limits.five_hour` data (Claude.ai Pro/Max subscribers).
+
+**Symbols:** `◒` FiveHour (unicode) &#8226; `5h` FiveHour (text)
+
+</details>
+
+<details>
+<summary><strong>CacheHit</strong> - Shows prompt-cache hit rate for the session</summary>
+
+```json
+"cacheHit": {
+  "enabled": true
+}
+```
+
+Shows the weighted prompt-cache hit rate (cache reads vs. total input) with the active cache's TTL countdown, e.g. `⌁ 93% (20:02:46)`. Because a healthy session normally sits well above 90%, the chip escalates as the rate **falls**: a **pale** fill below 90% (caution) and a **saturated** fill below 50% (urgent).
+
+**Symbols:** `⌁` CacheHit (unicode) &#8226; `C` CacheHit (text)
 
 </details>
 
